@@ -12,7 +12,6 @@ services:
       - "2222:2222"  # Maps port 2222 on the host to port 22 in the container
     volumes:
       - ./etc:/cowrie/etc  # Cowrie configuration files
-      - ./var:/cowrie/var  # Variable data
       - ./logs:/cowrie/log # Logs
     environment:
       COWRIE_MYSQL_DATABASE: bakCow
