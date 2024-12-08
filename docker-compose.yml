@@ -13,7 +13,7 @@ services:
     volumes:
       - ./etc:/cowrie/etc  # Cowrie configuration files
       - ./var:/cowrie/var  # Variable data
-      - ./logs:/cowrie/log # Logs
+      - ./logs:/cowrie/var/log/cowrie # Logs
     environment:
       COWRIE_MYSQL_DATABASE: bakCow
       COWRIE_MYSQL_HOST: mysql
