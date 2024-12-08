@@ -1,19 +1,43 @@
----
-version: '3'
-
-volumes:
-  cowrie-etc:
-  cowrie-var:
+version: '3.1'
 
 services:
   cowrie:
-    restart: always
     build:
-      context: context
+      context: .
       dockerfile: Dockerfile
+    image: cowrie/cowrie:latest
+    networks:
+      - cowrie-network
     ports:
-      - "2222:2222"
-      - "2223:2223"
+      - "2222:2222"  # Maps port 2222 on the host to port 22 in the container
     volumes:
-      - cowrie-etc:/cowrie/cowrie-git/etc
-      - cowrie-var:/cowrie/cowrie-git/var
+      - ./etc:/cowrie/etc  # Cowrie configuration files
+      - ./var:/cowrie/var  # Variable data
+      - ./logs:/cowrie/log # Logs
+    environment:
+      COWRIE_MYSQL_DATABASE: bakCow
+      COWRIE_MYSQL_HOST: mysql
+      COWRIE_MYSQL_USERNAME: shizuka
+      COWRIE_MYSQL_PASSWORD: haveANiceDay
+
+  mysql:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootPa55
+      MYSQL_DATABASE: bakCow
+      MYSQL_USER: shizuka
+      MYSQL_PASSWORD: haveANiceDay
+    networks:
+      - cowrie-network
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:
+
+networks:
+  cowrie-network:
+    driver: bridge

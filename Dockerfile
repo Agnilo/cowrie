@@ -33,6 +33,7 @@ RUN export DEBIAN_FRONTEND=noninteractive; \
       build-essential \
       ca-certificates \
       cargo \
+      default-libmysqlclient-dev \
       libffi-dev \
       libsnappy-dev \
       libssl-dev \
@@ -55,8 +56,8 @@ RUN python3 -m venv cowrie-env && \
     pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir --upgrade cffi && \
     pip install --no-cache-dir --upgrade -r ${COWRIE_HOME}/cowrie-git/requirements.txt && \
-    pip install --no-cache-dir --upgrade -r ${COWRIE_HOME}/cowrie-git/requirements-output.txt
-
+    pip install --no-cache-dir --upgrade -r ${COWRIE_HOME}/cowrie-git/requirements-output.txt && \
+    pip install --no-cache-dir mysql-connector-python
 COPY --chown=${COWRIE_USER}:${COWRIE_GROUP} . ${COWRIE_HOME}/cowrie-git
 
 

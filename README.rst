@@ -1,7 +1,7 @@
 Cowrie
 ######
 
-Welcome to the Cowrie GitHub repository!
+Welcome to the Cowrie GitHub repository
 *****************************************
 
 This is the official repository for the Cowrie SSH and Telnet
