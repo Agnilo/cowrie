@@ -14,7 +14,6 @@ services:
     volumes:
       - ./etc:/cowrie/etc
       - ./logs:/cowrie/cowrie-git/var/log/cowrie
-      - ./share:/cowrie/cowrie-git/share
     environment:
       COWRIE_MYSQL_DATABASE: bakCow
       COWRIE_MYSQL_HOST: mysql
