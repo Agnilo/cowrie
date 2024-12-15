@@ -1,8 +1,6 @@
 import os
-import mysql.connector
-from datetime import datetime
 import shutil
-
+from twisted.python import log
 
 DB_CONFIG = {
     'user': 'shizuka',
@@ -12,49 +10,21 @@ DB_CONFIG = {
 }
 
 BASE_FS_DIR = "var/persistent_fs"  # Base directory for persistent filesystems
-DEFAULT_FS_PICKLE = "/cowrie/cowrie-git/fs.pickle"
+DEFAULT_FS_PICKLE = "/cowrie/cowrie-git/src/cowrie/data/fs.pickle"
 
 
-def get_or_create_persistent_fs(username, password, ip_address, session_id):
+def get_or_create_persistent_fs(username: str, password: str, ip: str, session_id: str) -> str:
     """
-    Generate or retrieve a unique persistent shell directory for a hacker.
+    Retrieve or create a persistent filesystem for a given user.
     """
-    conn = mysql.connector.connect(**DB_CONFIG)
-    cursor = conn.cursor(dictionary=True)
+    fs_dir = os.path.join(PERSISTENT_FS_DIR, f"{username}_{password}_{ip}")
+    fs_path = os.path.join(fs_dir, "fs.pickle")
 
-    try:
-        # Check if entry already exists
-        cursor.execute("""
-            SELECT fs_path FROM persistent_filesystem
-            WHERE username=%s AND password=%s AND ip_address=%s
-        """, (username, password, ip_address))
-        result = cursor.fetchone()
-
-        if result:
-            fs_path = result['fs_path']
-        else:
-            # Generate a new persistent directory name
-            fs_dir_name = f"{username}_{ip_address}_{session_id}"
-            fs_path = os.path.join("persistent", fs_dir_name)
-
-            # Create the persistent directory
-            full_path = os.path.join(BASE_FS_DIR, fs_path)
-            os.makedirs(full_path, exist_ok=True)
-
-            # Copy default fs.pickle to the new directory
-            fs_pickle_dest = os.path.join(full_path, "fs.pickle")
-            if not os.path.exists(fs_pickle_dest):
-                shutil.copy(DEFAULT_FS_PICKLE, fs_pickle_dest)
-
-            # Insert the persistent FS path into the database
-            cursor.execute("""
-                INSERT INTO persistent_filesystem (session_id, username, password, ip_address, fs_path, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (session_id, username, password, ip_address, fs_path, datetime.now()))
-            conn.commit()
-
-        return fs_path
-
-    finally:
-        cursor.close()
-        conn.close()
+    if not os.path.exists(fs_dir):
+        os.makedirs(fs_dir, exist_ok=True)
+        shutil.copy(DEFAULT_FS_PICKLE, fs_path)
+        log.msg(f"Created new persistent filesystem: {fs_path}")
+    else:
+        log.msg(f"Using existing persistent filesystem: {fs_path}")
+    
+    return fs_path

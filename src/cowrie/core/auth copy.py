@@ -19,9 +19,6 @@ from re import Pattern
 from twisted.python import log
 
 from cowrie.core.config import CowrieConfig
-import uuid
-from datetime import datetime
-from cowrie.core.persistence import get_or_create_persistent_fs
 
 _USERDB_DEFAULTS: list[str] = [
     "root:x:!root",
@@ -43,26 +40,6 @@ class UserDB:
             tuple[Pattern[bytes] | bytes, Pattern[bytes] | bytes], bool
         ] = OrderedDict()
         self.load()
-
-    def connect_to_db(self):
-        try:
-            connection = mysql.connector.connect(
-                host="cowrie_mysql_1",
-                user="shizuka",
-                password="haveANiceDay",
-                database="bakCow"
-            )
-            if connection.is_connected():
-                log.msg("Connected to MySQL database")
-            return connection
-        except Error as e:
-            log.msg(f"MySQL connection error: {e}")
-            return None
-        
-    def close_db(self):
-        if self.db and self.db.is_connected():
-            self.db.close()
-            log.msg("MySQL connection closed.")
 
     def load(self) -> None:
         """
@@ -91,103 +68,19 @@ class UserDB:
                     self.adduser(login, password)
 
     def checklogin(
-        self, thelogin: bytes, thepasswd: bytes, src_ip: str = "0.0.0.0", protocol=None
+        self, thelogin: bytes, thepasswd: bytes, src_ip: str = "0.0.0.0"
     ) -> bool:
-        """
-        Enhanced checklogin method to integrate persistent filesystem logic.
-        """
-        success = False
-        username = thelogin.decode("utf8")
-        password = thepasswd.decode("utf8")
-
         for credentials, policy in self.userdb.items():
+            login: bytes | Pattern[bytes]
+            passwd: bytes | Pattern[bytes]
             login, passwd = credentials
 
-            if self.match_rule(login, thelogin) and self.match_rule(passwd, thepasswd):
-                # If login is successful
-                success = True
+            if self.match_rule(login, thelogin):
+                if self.match_rule(passwd, thepasswd):
+                    return policy
 
-                # Generate session ID for this user session
-                session_id = str(uuid.uuid4())
+        return False
 
-                self.log_login_attempt(username, password, src_ip, True)
-                self.replay_commands(username, password, src_ip)
-
-                # Fetch or create persistent filesystem path
-                persistent_fs_path = get_or_create_persistent_fs(
-                    username, password, src_ip, session_id
-                )
-                log.msg(f"Persistent filesystem path created/retrieved: {persistent_fs_path}")
-
-                # Pass the persistent filesystem path to the protocol
-                if protocol and hasattr(protocol, "set_filesystem"):
-                    protocol.set_filesystem(persistent_fs_path)
-                else:
-                    log.msg("Protocol does not support set_filesystem!")
-
-
-                break
-
-        if not success:
-            self.log_login_attempt(username, password, src_ip, False)
-        return success
-
-    def log_login_attempt(self, username: str, password: str, src_ip: str, success: bool) -> None:
-        """
-        Log login attempts to the MySQL database.
-        """
-        connection = self.connect_to_db()
-        if not connection:
-            log.msg("Skipping MySQL logging due to connection failure.")
-            return
-
-        try:
-            cursor = connection.cursor()
-            query = """
-                INSERT INTO auth (username, password, ip, success, timestamp)
-                VALUES (%s, %s, %s, %s, NOW())
-            """
-            cursor.execute(query, (username, password, src_ip, int(success)))
-            connection.commit()
-            log.msg(f"Login attempt logged: {username} @ {src_ip}, Success: {success}")
-        except Exception as e:
-            log.msg(f"MySQL error while logging login attempt: {e}")
-        finally:
-            cursor.close()
-            connection.close()
-
-    def replay_commands(self, username: str, password: str, ip: str) -> None:
-        """
-        Replay previously executed commands for returning attackers.
-        """
-        query = """
-            SELECT DISTINCT i.input, i.timestamp
-            FROM auth a
-            INNER JOIN input i ON i.session = a.session
-            INNER JOIN sessions s ON s.id = a.session
-            WHERE a.success = 1 AND i.success = 1 
-            AND a.username = %s AND a.password = %s 
-            AND s.ip = %s
-            AND i.input NOT LIKE '%ping%' 
-            AND i.input NOT LIKE '%exit%' 
-            AND i.input NOT LIKE '%ls%' 
-            AND i.input NOT LIKE '%curl%' 
-            AND i.input NOT LIKE '%wget%'
-            ORDER BY i.timestamp ASC;
-        """
-        params = (username, password, ip)
-
-        try:
-            cursor = self.db.cursor()
-            cursor.execute(query, params)
-            past_commands = cursor.fetchall()
-            cursor.close()
-
-            for command in past_commands:
-                log.msg(f"Replaying command for {username}@{ip}: {command[0]}")
-        except Error as e:
-            log.msg(f"MySQL error during command replay: {e}")
-    
     def match_rule(self, rule: bytes | Pattern[bytes], data: bytes) -> bool | bytes:
         if isinstance(rule, bytes):
             return rule in [b"*", data]

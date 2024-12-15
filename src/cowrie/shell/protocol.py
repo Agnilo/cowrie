@@ -300,15 +300,19 @@ class HoneyPotInteractiveProtocol(HoneyPotBaseProtocol, recvline.HistoricRecvLin
             # Load persistent filesystem dynamically
             try:
                 username = self.user.username
-                password = self.user.avatar.password 
+                password = self.user.avatar.password  # Password might need fetching elsewhere
                 ip_address = self.realClientIP
 
+                # Fetch or create the persistent filesystem
                 persistent_fs_path = get_persistent_fs(username, password, ip_address)
-                self.fs.loadFilesystem(persistent_fs_path)
+                
+                # Reinitialize the filesystem with the persistent fs.pickle
+                self.fs = HoneyPotFilesystem(persistent_fs_path)
                 log.msg(f"Loaded persistent filesystem: {persistent_fs_path}")
+
             except Exception as e:
                 log.err(f"Error loading persistent filesystem: {e}")
-                self.fs.loadFilesystem(DEFAULT_FS_PICKLE)
+                self.fs = HoneyPotFilesystem(DEFAULT_FS_PICKLE)
                 log.msg("Loaded default filesystem as fallback.")
 
             # Start the interactive shell
