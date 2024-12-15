@@ -17,36 +17,44 @@ def get_or_create_persistent_fs(username: str, password: str, ip_address: str, s
     """
     Retrieve or create a persistent filesystem path for a hacker.
     """
-    fs_path: Optional[str] = None
-
-    # Connect to the database
-    conn = mysql.connector.connect(**DB_CONFIG)
-    cursor = conn.cursor(dictionary=True)
+    fs_path = None
 
     try:
-        # Check if the filesystem already exists
+        # Connect to the database
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor(dictionary=True)
+
+        # Check if filesystem already exists
         cursor.execute("""
             SELECT fs_path FROM persistent_filesystem
             WHERE username=%s AND password=%s AND ip_address=%s
         """, (username, password, ip_address))
-        
+
         result = cursor.fetchone()
+        print(f"Query result: {result}")
+
         if result:
-            # Use the existing filesystem path
-            fs_path = result[0]
+            fs_path = result['fs_path']
+            print(f"Using existing fs_path: {fs_path}")
         else:
-            # Generate a new filesystem path
+            # Generate new filesystem path
             fs_dir_name = f"{username}_{ip_address}_{session_id}"
             fs_path = os.path.join(BASE_FS_DIR, fs_dir_name)
             os.makedirs(fs_path, exist_ok=True)
+            print(f"Created new fs_path: {fs_path}")
 
-            # Insert into the database
+            # Insert into database
             cursor.execute("""
-                INSERT INTO persistent_filesystem (session_id, username, password, ip_address, fs_path, created_at)
+                INSERT INTO persistent_filesystem 
+                (session_id, username, password, ip_address, fs_path, created_at)
                 VALUES (%s, %s, %s, %s, %s, %s)
             """, (session_id, username, password, ip_address, fs_path, datetime.now()))
-            conn.commit()
 
+            conn.commit()
+            print("New fs_path committed to DB.")
+
+    except Exception as e:
+        print(f"Error: {e}")
     finally:
         cursor.close()
         conn.close()
