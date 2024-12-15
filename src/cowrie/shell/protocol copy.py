@@ -23,45 +23,6 @@ import cowrie.commands
 from cowrie.core.config import CowrieConfig
 from cowrie.shell import command, honeypot
 
-import mysql.connector
-from mysql.connector import Error
-import os
-
-PERSISTENT_FS_DIR = "/cowrie/var/persistent_fs"  # Directory for persistent filesystems
-DEFAULT_FS_PICKLE = "/cowrie/cowrie-git/src/cowrie/data/fs.pickle"  # Default fs.pickle
-
-def connect_to_db():
-    try:
-        connection = mysql.connector.connect(
-            host="cowrie-git-mysql-1",
-            user="cowrie",
-            password="yourpassword",
-            database="cowrie"
-        )
-        if connection.is_connected():
-            log.msg("Connected to MySQL database")
-        return connection
-    except Error as e:
-        log.msg(f"Error connecting to database: {e}")
-        return None
-
-def get_persistent_fs(username, password, ip):
-    """
-    Retrieve or create a persistent filesystem path for a user.
-    """
-    fs_dir = os.path.join(PERSISTENT_FS_DIR, f"{username}_{password}_{ip}")
-    fs_path = os.path.join(fs_dir, "fs.pickle")
-
-    if not os.path.exists(fs_dir):
-        os.makedirs(fs_dir, exist_ok=True)
-        # Copy the default fs.pickle to the user's directory
-        import shutil
-        shutil.copy(DEFAULT_FS_PICKLE, fs_path)
-        log.msg(f"Created new persistent filesystem: {fs_path}")
-    else:
-        log.msg(f"Using existing persistent filesystem: {fs_path}")
-
-    return fs_path
 
 class HoneyPotBaseProtocol(insults.TerminalProtocol, TimeoutMixin):
     """
@@ -294,47 +255,32 @@ class HoneyPotInteractiveProtocol(HoneyPotBaseProtocol, recvline.HistoricRecvLin
         HoneyPotBaseProtocol.__init__(self, avatar)
 
     def connectionMade(self) -> None:
-            """
-            Load persistent filesystem and set up the interactive shell.
-            """
-            # Load persistent filesystem dynamically
-            try:
-                username = self.user.username
-                password = self.user.avatar.password 
-                ip_address = self.realClientIP
+        self.displayMOTD()
 
-                persistent_fs_path = get_persistent_fs(username, password, ip_address)
-                self.fs.loadFilesystem(persistent_fs_path)
-                log.msg(f"Loaded persistent filesystem: {persistent_fs_path}")
-            except Exception as e:
-                log.err(f"Error loading persistent filesystem: {e}")
-                self.fs.loadFilesystem(DEFAULT_FS_PICKLE)
-                log.msg("Loaded default filesystem as fallback.")
+        HoneyPotBaseProtocol.connectionMade(self)
+        recvline.HistoricRecvLine.connectionMade(self)
 
-            # Start the interactive shell
-            self.displayMOTD()
-            HoneyPotBaseProtocol.connectionMade(self)
-            recvline.HistoricRecvLine.connectionMade(self)
-            self.cmdstack = [honeypot.HoneyPotShell(self)]
-            self.keyHandlers.update(
-                {
-                    b"\x01": self.handle_HOME,  # CTRL-A
-                    b"\x02": self.handle_LEFT,  # CTRL-B
-                    b"\x03": self.handle_CTRL_C,  # CTRL-C
-                    b"\x04": self.handle_CTRL_D,  # CTRL-D
-                    b"\x05": self.handle_END,  # CTRL-E
-                    b"\x06": self.handle_RIGHT,  # CTRL-F
-                    b"\x08": self.handle_BACKSPACE,  # CTRL-H
-                    b"\x09": self.handle_TAB,
-                    b"\x0b": self.handle_CTRL_K,  # CTRL-K
-                    b"\x0c": self.handle_CTRL_L,  # CTRL-L
-                    b"\x0e": self.handle_DOWN,  # CTRL-N
-                    b"\x10": self.handle_UP,  # CTRL-P
-                    b"\x15": self.handle_CTRL_U,  # CTRL-U
-                    b"\x16": self.handle_CTRL_V,  # CTRL-V
-                    b"\x1b": self.handle_ESC,  # ESC
-                }
-            )
+        self.cmdstack = [honeypot.HoneyPotShell(self)]
+
+        self.keyHandlers.update(
+            {
+                b"\x01": self.handle_HOME,  # CTRL-A
+                b"\x02": self.handle_LEFT,  # CTRL-B
+                b"\x03": self.handle_CTRL_C,  # CTRL-C
+                b"\x04": self.handle_CTRL_D,  # CTRL-D
+                b"\x05": self.handle_END,  # CTRL-E
+                b"\x06": self.handle_RIGHT,  # CTRL-F
+                b"\x08": self.handle_BACKSPACE,  # CTRL-H
+                b"\x09": self.handle_TAB,
+                b"\x0b": self.handle_CTRL_K,  # CTRL-K
+                b"\x0c": self.handle_CTRL_L,  # CTRL-L
+                b"\x0e": self.handle_DOWN,  # CTRL-N
+                b"\x10": self.handle_UP,  # CTRL-P
+                b"\x15": self.handle_CTRL_U,  # CTRL-U
+                b"\x16": self.handle_CTRL_V,  # CTRL-V
+                b"\x1b": self.handle_ESC,  # ESC
+            }
+        )
 
     def displayMOTD(self) -> None:
         try:

@@ -13,9 +13,6 @@ from typing import Literal
 from twisted.conch.ssh import session
 from twisted.conch.ssh.common import getNS
 from twisted.python import log
-from cowrie.core.persistence import get_or_create_persistent_fs
-import os
-from datetime import datetime
 
 
 class HoneyPotSSHSession(session.SSHSession):
@@ -25,35 +22,8 @@ class HoneyPotSSHSession(session.SSHSession):
 
     def __init__(self, *args, **kw):
         session.SSHSession.__init__(self, *args, **kw)
-        self.persistent_fs_path = None  # Initialize fs path as None
-
-    def setup_persistent_filesystem(self) -> None:
-        """
-        Retrieve or create a persistent filesystem for this session.
-        """
-        try:
-            # Extract session information after transport is initialized
-            session_id = self.conn.transport.transport.sessionno
-            ip_address = self.conn.transport.transport.getPeer().host
-            username = self.conn.transport.factory.username
-            password = self.conn.transport.factory.password
-
-            # Retrieve persistent fs path
-            self.persistent_fs_path = get_or_create_persistent_fs(
-                username, password, ip_address, session_id
-            )
-            log.msg(f"Persistent filesystem path set: {self.persistent_fs_path}")
-
-            # Set environment variable for shell
-            if self.session:
-                self.session.environ['PERSISTENT_FS'] = self.persistent_fs_path
-        except Exception as e:
-            log.err(f"Error setting up persistent filesystem: {e}")
 
     def request_env(self, data: bytes) -> Literal[0, 1]:
-        self.setup_persistent_filesystem()
-
-
         name, rest = getNS(data)
         value, rest = getNS(rest)
 

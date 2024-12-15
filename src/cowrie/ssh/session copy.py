@@ -16,6 +16,7 @@ from twisted.python import log
 from cowrie.core.persistence import get_or_create_persistent_fs
 import os
 from datetime import datetime
+from configparser import ConfigParser
 
 
 class HoneyPotSSHSession(session.SSHSession):
@@ -25,8 +26,49 @@ class HoneyPotSSHSession(session.SSHSession):
 
     def __init__(self, *args, **kw):
         session.SSHSession.__init__(self, *args, **kw)
+        self.persistent_fs_path = None  # Initialize fs path as None
+
+    def setup_persistent_filesystem(self):
+        """
+        Dynamically set up the persistent filesystem for this session.
+        """
+        try:
+            # Extract session data
+            session_id = self.conn.transport.transport.sessionno
+            ip_address = self.conn.transport.transport.getPeer().host
+            username = getattr(self.conn.transport.factory, "username", None)
+            password = getattr(self.conn.transport.factory, "password", None)
+
+            # Check if username, password, and IP are valid
+            if not (username and password and ip_address):
+                log.err("Missing session credentials: persistent FS setup skipped")
+                return
+
+            # Retrieve or create persistent filesystem
+            fs_dir_name = get_or_create_persistent_fs(username, password, ip_address, session_id)
+            persistent_fs_pickle = os.path.join("/cowrie/persistent", fs_dir_name, "fs.pickle")
+
+            # Update Cowrie configuration dynamically
+            config_path = "/cowrie/cowrie-git/etc/cowrie.cfg"
+            cfg = ConfigParser()
+            cfg.read(config_path)
+
+            # Dynamically set the filesystem path
+            cfg.set("shell", "filesystem", persistent_fs_pickle)
+
+            with open(config_path, "w") as configfile:
+                cfg.write(configfile)
+
+            log.msg(f"Persistent filesystem set to: {persistent_fs_pickle}")
+            self.persistent_fs_path = persistent_fs_pickle
+
+        except Exception as e:
+            log.err(f"Error setting up persistent filesystem: {e}")
 
     def request_env(self, data: bytes) -> Literal[0, 1]:
+        self.setup_persistent_filesystem()
+
+
         name, rest = getNS(data)
         value, rest = getNS(rest)
 
