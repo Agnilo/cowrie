@@ -10,6 +10,7 @@ from __future__ import annotations
 import configparser
 import json
 import re
+import uuid
 from collections import OrderedDict
 from os import path
 from random import randint
@@ -17,9 +18,10 @@ from typing import Any
 from re import Pattern
 
 from twisted.python import log
+import mysql.connector
+from mysql.connector import Error
 
 from cowrie.core.config import CowrieConfig
-import uuid
 from datetime import datetime
 from cowrie.core.persistence import get_or_create_persistent_fs
 
