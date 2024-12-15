@@ -25,40 +25,6 @@ class HoneyPotSSHSession(session.SSHSession):
 
     def __init__(self, *args, **kw):
         session.SSHSession.__init__(self, *args, **kw)
-        self.persistent_fs_path = None  # Initialize fs path as None
-        self.setup_persistent_filesystem()
-
-    def setup_persistent_filesystem(self) -> None:
-        """
-        Retrieve or create a persistent filesystem for this session.
-        """
-        try:
-            # Type hinting for editor
-            transport = self.conn.transport
-            if hasattr(transport, 'sessionno') and hasattr(transport, 'getPeer'):
-
-                # Extract session information
-                session_id = transport.sessionno  # Unique session ID
-                ip_address = transport.getPeer().host  # Client IP address
-            else:
-                log.err("Transport object does not have 'sessionno' or 'getPeer'.")
-                return
-
-            username = getattr(self.conn.transport.factory, "username", "unknown")
-            password = getattr(self.conn.transport.factory, "password", "unknown")
-
-            # Retrieve or create persistent filesystem
-            self.persistent_fs_path = get_or_create_persistent_fs(username, password, ip_address, session_id)
-
-            # Log the persistent filesystem path
-            log.msg(f"Persistent filesystem path for session {session_id}: {self.persistent_fs_path}")
-
-            # Optionally, set in environment variables (for use in shell)
-            if self.session:
-                self.session.environ['PERSISTENT_FS'] = self.persistent_fs_path
-
-        except Exception as e:
-            log.err(f"Error setting up persistent filesystem: {e}")
 
     def request_env(self, data: bytes) -> Literal[0, 1]:
         name, rest = getNS(data)
