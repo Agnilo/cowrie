@@ -17,7 +17,7 @@ def get_or_create_persistent_fs(username: str, password: str, ip: str, session_i
     """
     Retrieve or create a persistent filesystem for a given user.
     """
-    fs_dir = os.path.join(PERSISTENT_FS_DIR, f"{username}_{password}_{ip}")
+    fs_dir = os.path.join(BASE_FS_DIR, f"{username}_{password}_{ip}")
     fs_path = os.path.join(fs_dir, "fs.pickle")
 
     if not os.path.exists(fs_dir):
