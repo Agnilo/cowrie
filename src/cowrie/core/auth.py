@@ -57,14 +57,9 @@ class UserDB:
             if connection.is_connected():
                 log.msg("Connected to MySQL database")
             return connection
-        except Error as e:
+        except mysql.connector.Error as e:
             log.msg(f"MySQL connection error: {e}")
             return None
-        
-    def close_db(self):
-        if self.db and self.db.is_connected():
-            self.db.close()
-            log.msg("MySQL connection closed.")
 
     def load(self) -> None:
         """
@@ -152,11 +147,13 @@ class UserDB:
             cursor.execute(query, (username, password, src_ip, int(success)))
             connection.commit()
             log.msg(f"Login attempt logged: {username} @ {src_ip}, Success: {success}")
-        except Exception as e:
+        except mysql.connector.Error as e:
             log.msg(f"MySQL error while logging login attempt: {e}")
         finally:
-            cursor.close()
-            connection.close()
+            if cursor:
+                cursor.close()
+            if connection:
+                connection.close()
 
     def replay_commands(self, username: str, password: str, ip: str) -> None:
         """
