@@ -69,7 +69,7 @@ class UserDB:
         """
         dblines: list[str]
 
-        userdb_path = "{}/userdb.txt".format(CowrieConfig.get("honeypot", "etc_path"))
+        userdb_path = "{}/userdbb.txt".format(CowrieConfig.get("honeypot", "etc_path"))
 
         log.msg(f"Attempting to read user database from: {userdb_path}")
 
