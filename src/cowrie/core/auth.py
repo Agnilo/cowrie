@@ -44,6 +44,8 @@ class UserDB:
         self.userdb: dict[
             tuple[Pattern[bytes] | bytes, Pattern[bytes] | bytes], bool
         ] = OrderedDict()
+        self.db = self.connect_to_db()
+        self.deferred_commands = []
         self.load()
 
     def connect_to_db(self):
@@ -63,18 +65,19 @@ class UserDB:
 
     def load(self) -> None:
         """
-        load the user db
+        Load the user db
         """
-
         dblines: list[str]
+
+        userdb_path = "{}/userdb.txt".format(CowrieConfig.get("honeypot", "etc_path"))
+
+        log.msg(f"Attempting to read user database from: {userdb_path}")
+
         try:
-            with open(
-                "{}/userdb.txt".format(CowrieConfig.get("honeypot", "etc_path")),
-                encoding="ascii",
-            ) as db:
+            with open(userdb_path, encoding="ascii") as db:
                 dblines = db.readlines()
-        except OSError:
-            log.msg("Could not read etc/userdb.txt, default database activated")
+        except OSError as e:
+            log.msg(f"Could not read {userdb_path}, error: {e}")
             dblines = _USERDB_DEFAULTS
 
         for user in dblines:
@@ -129,31 +132,27 @@ class UserDB:
             self.log_login_attempt(username, password, src_ip, False)
         return success
 
-    def log_login_attempt(self, username: str, password: str, src_ip: str, success: bool) -> None:
+    def log_login_attempt(self, username: str, password: str, ip: str, success: bool) -> None:
         """
-        Log login attempts to the MySQL database.
+        Log login attempts to the database.
         """
-        connection = self.connect_to_db()
-        if not connection:
-            log.msg("Skipping MySQL logging due to connection failure.")
-            return
+        session_id = str(uuid.uuid4()).replace("-", "")  # Generate a new session ID
+        timestamp = datetime.now()
+
+        query = """
+        INSERT INTO auth (session, success, username, password, ip, timestamp)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        params = (session_id, int(success), username, password, ip, timestamp)
 
         try:
-            cursor = connection.cursor()
-            query = """
-                INSERT INTO auth (username, password, ip, success, timestamp)
-                VALUES (%s, %s, %s, %s, NOW())
-            """
-            cursor.execute(query, (username, password, src_ip, int(success)))
-            connection.commit()
-            log.msg(f"Login attempt logged: {username} @ {src_ip}, Success: {success}")
-        except mysql.connector.Error as e:
-            log.msg(f"MySQL error while logging login attempt: {e}")
-        finally:
-            if cursor:
-                cursor.close()
-            if connection:
-                connection.close()
+            cursor = self.db.cursor()
+            cursor.execute(query, params)
+            self.db.commit()
+            cursor.close()
+            log.msg(f"Login attempt logged for {username} at IP {ip} with success: {success}")
+        except Error as e:
+            log.msg(f"MySQL error during login logging: {e}")
 
     def replay_commands(self, username: str, password: str, ip: str) -> None:
         """
