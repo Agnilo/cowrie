@@ -12,7 +12,7 @@ services:
     ports:
       - "2222:2222"  # Maps port 2222 on the host to port 22 in the container
     volumes:
-      # - ./etc:/cowrie/cowrie-git/etc
+      - ./etc:/cowrie/cowrie-git/etc
       - ./logs:/cowrie/cowrie-git/var/log/cowrie
     environment:
       COWRIE_MYSQL_DATABASE: bakCow
