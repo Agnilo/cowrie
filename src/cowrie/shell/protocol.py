@@ -20,23 +20,25 @@ from twisted.protocols.policies import TimeoutMixin
 from twisted.python import failure, log
 
 import cowrie.commands
+from cowrie.core.persistence import get_or_create_persistent_fs,save_persistent_changes
 from cowrie.core.config import CowrieConfig
 from cowrie.shell import command, honeypot
+import pickle
 
 import mysql.connector
 from mysql.connector import Error
 import os
 
-PERSISTENT_FS_DIR = "/cowrie/var/persistent_fs"  # Directory for persistent filesystems
-DEFAULT_FS_PICKLE = "/cowrie/cowrie-git/src/cowrie/data/fs.pickle"  # Default fs.pickle
+BASE_FS_DIR = "var/persistent_fs"  # Base directory for persistent filesystems
+DEFAULT_FS_PICKLE = "/cowrie/cowrie-git/src/cowrie/data/custom.pickle"
 
 def connect_to_db():
     try:
         connection = mysql.connector.connect(
-            host="cowrie-git-mysql-1",
-            user="cowrie",
-            password="yourpassword",
-            database="cowrie"
+            host="cowrie_mysql_1",
+            user="shizuka",
+            password="haveANiceDay",
+            database="bakCow"
         )
         if connection.is_connected():
             log.msg("Connected to MySQL database")
@@ -49,7 +51,7 @@ def get_persistent_fs(username, password, ip):
     """
     Retrieve or create a persistent filesystem path for a user.
     """
-    fs_dir = os.path.join(PERSISTENT_FS_DIR, f"{username}_{password}_{ip}")
+    fs_dir = os.path.join(BASE_FS_DIR, f"{username}_{password}_{ip}")
     fs_path = os.path.join(fs_dir, "fs.pickle")
 
     if not os.path.exists(fs_dir):
@@ -294,51 +296,58 @@ class HoneyPotInteractiveProtocol(HoneyPotBaseProtocol, recvline.HistoricRecvLin
         HoneyPotBaseProtocol.__init__(self, avatar)
 
     def connectionMade(self) -> None:
-            """
-            Load persistent filesystem and set up the interactive shell.
-            """
-            # Load persistent filesystem dynamically
-            try:
-                username = self.user.username
-                password = self.user.avatar.password  # Password might need fetching elsewhere
-                ip_address = self.realClientIP
+        """
+        Load persistent filesystem and set up the interactive shell.
+        """
+        # Load persistent filesystem dynamically
+        try:
+            username = self.user.username
+            password = getattr(self.user.avatar, "password", "default")  # Handle missing password gracefully
+            ip_address = self.realClientIP
 
-                # Fetch or create the persistent filesystem
-                persistent_fs_path = get_persistent_fs(username, password, ip_address)
+            # Fetch or create the persistent filesystem path
+            persistent_fs_path = get_or_create_persistent_fs(username, password, ip_address, self.user.server.sessionno)
                 
-                # Reinitialize the filesystem with the persistent fs.pickle
-                self.fs = HoneyPotFilesystem(persistent_fs_path)
-                log.msg(f"Loaded persistent filesystem: {persistent_fs_path}")
+            # Load the filesystem data from the persistent fs.pickle
+            with open(persistent_fs_path, "rb") as f:
+                self.fs = pickle.load(f)  # Load the persistent filesystem as a dictionary
+                
+            log.msg(f"Loaded persistent filesystem: {persistent_fs_path}")
 
-            except Exception as e:
-                log.err(f"Error loading persistent filesystem: {e}")
-                self.fs = HoneyPotFilesystem(DEFAULT_FS_PICKLE)
-                log.msg("Loaded default filesystem as fallback.")
+        except Exception as e:
+            log.err(f"Error loading persistent filesystem: {e}")
+            # Load the default filesystem if persistence fails
+            with open(DEFAULT_FS_PICKLE, "rb") as f:
+                self.fs = pickle.load(f)
+            log.msg("Loaded default filesystem as fallback.")
 
-            # Start the interactive shell
-            self.displayMOTD()
-            HoneyPotBaseProtocol.connectionMade(self)
-            recvline.HistoricRecvLine.connectionMade(self)
-            self.cmdstack = [honeypot.HoneyPotShell(self)]
-            self.keyHandlers.update(
-                {
-                    b"\x01": self.handle_HOME,  # CTRL-A
-                    b"\x02": self.handle_LEFT,  # CTRL-B
-                    b"\x03": self.handle_CTRL_C,  # CTRL-C
-                    b"\x04": self.handle_CTRL_D,  # CTRL-D
-                    b"\x05": self.handle_END,  # CTRL-E
-                    b"\x06": self.handle_RIGHT,  # CTRL-F
-                    b"\x08": self.handle_BACKSPACE,  # CTRL-H
-                    b"\x09": self.handle_TAB,
-                    b"\x0b": self.handle_CTRL_K,  # CTRL-K
-                    b"\x0c": self.handle_CTRL_L,  # CTRL-L
-                    b"\x0e": self.handle_DOWN,  # CTRL-N
-                    b"\x10": self.handle_UP,  # CTRL-P
-                    b"\x15": self.handle_CTRL_U,  # CTRL-U
-                    b"\x16": self.handle_CTRL_V,  # CTRL-V
-                    b"\x1b": self.handle_ESC,  # ESC
-                }
-            )
+        # Start the interactive shell
+        self.displayMOTD()
+
+        HoneyPotBaseProtocol.connectionMade(self)
+        recvline.HistoricRecvLine.connectionMade(self)
+
+        self.cmdstack = [honeypot.HoneyPotShell(self)]
+
+        self.keyHandlers.update(
+            {
+                b"\x01": self.handle_HOME,  # CTRL-A
+                b"\x02": self.handle_LEFT,  # CTRL-B
+                b"\x03": self.handle_CTRL_C,  # CTRL-C
+                b"\x04": self.handle_CTRL_D,  # CTRL-D
+                b"\x05": self.handle_END,  # CTRL-E
+                b"\x06": self.handle_RIGHT,  # CTRL-F
+                b"\x08": self.handle_BACKSPACE,  # CTRL-H
+                b"\x09": self.handle_TAB,
+                b"\x0b": self.handle_CTRL_K,  # CTRL-K
+                b"\x0c": self.handle_CTRL_L,  # CTRL-L
+                b"\x0e": self.handle_DOWN,  # CTRL-N
+                b"\x10": self.handle_UP,  # CTRL-P
+                b"\x15": self.handle_CTRL_U,  # CTRL-U
+                b"\x16": self.handle_CTRL_V,  # CTRL-V
+                b"\x1b": self.handle_ESC,  # ESC
+            }
+        )
 
     def displayMOTD(self) -> None:
         try:
@@ -353,6 +362,26 @@ class HoneyPotInteractiveProtocol(HoneyPotBaseProtocol, recvline.HistoricRecvLin
         assert self.terminal is not None
         self.terminal.write(b"timed out waiting for input: auto-logout\n")
         HoneyPotBaseProtocol.timeoutConnection(self)
+
+    def set_filesystem(self, fs_path: str) -> None:
+        """
+        Set the filesystem for the current session dynamically.
+        """
+        try:
+            if os.path.exists(fs_path):
+                with open(fs_path, "rb") as f:
+                    self.fs = pickle.load(f)  # Load the new filesystem from pickle
+                log.msg(f"Switched to persistent filesystem: {fs_path}")
+            else:
+                log.msg(f"Persistent filesystem not found at {fs_path}. Creating new filesystem.")
+                with open(DEFAULT_FS_PICKLE, "rb") as f:
+                    self.fs = pickle.load(f)
+                save_persistent_changes(fs_path, self.fs)  # Save a copy of the default filesystem
+        except Exception as e:
+            log.err(f"Error switching to persistent filesystem: {e}")
+            log.msg("Falling back to default filesystem.")
+            with open(DEFAULT_FS_PICKLE, "rb") as f:
+                self.fs = pickle.load(f)
 
     def connectionLost(self, reason: failure.Failure = connectionDone) -> None:
         HoneyPotBaseProtocol.connectionLost(self, reason)
