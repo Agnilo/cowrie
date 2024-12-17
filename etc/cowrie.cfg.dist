@@ -56,7 +56,7 @@ state_path = var/lib/cowrie
 # Directory for config files
 #
 # (default: etc)
-etc_path = etc
+etc_path = cowrie/etc
 
 
 # Directory where virtual file contents are kept in.

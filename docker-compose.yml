@@ -16,7 +16,7 @@ services:
     ports:
       - "2222:2222"  # SSH honeypot exposed on port 2222 (host)
     volumes:
-      - ./etc:/cowrie/cowrie-git/etc
+      - ./cowrie-etc:/cowrie/cowrie-git/etc
       - ./logs:/cowrie/cowrie-git/var/log/cowrie
       - tmpfs:/cowrie/cowrie-git/var/persistent_fs
     environment:
