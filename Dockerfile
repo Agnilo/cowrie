@@ -123,8 +123,8 @@ CMD [ "/cowrie/cowrie-env/bin/twistd", "-n", "--umask=0022", "--pidfile=", "cowr
 FROM cowrie/cowrie:latest
 
 # Ensure the persistent FS directory exists with proper permissions
-RUN mkdir -p /cowrie/cowrie-git/var/persistent_fs && \
-    chown -R 1000:1000 /cowrie/cowrie-git/var/persistent_fs
+RUN ["/usr/bin/mkdir", "-p", "/cowrie/cowrie-git/var/persistent_fs"]
+RUN ["/usr/bin/chown", "-R", "1000:1000", "/cowrie/cowrie-git/var/persistent_fs"]
 
 # Default entrypoint for Cowrie
 ENTRYPOINT ["/cowrie/cowrie-env/bin/twistd", "-n", "cowrie"]
