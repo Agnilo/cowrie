@@ -565,23 +565,21 @@ class Command_mkdir(HoneyPotCommand):
                 continue
             
             try:
-                self.fs.mkdir(
-                    pname, self.protocol.user.uid, self.protocol.user.gid, 4096, 16877
-                )
+                # Default UID/GID of the user creating the directory
+                uid = self.protocol.user.uid if self.protocol.user.uid else 1000
+                gid = self.protocol.user.gid if self.protocol.user.gid else 1000                
+                
+                self.fs.mkdir(pname, uid, gid, 4096, 16877)
+
                 # Fetch session and authentication details
                 username = self.protocol.user.username
                 password = getattr(self.protocol.user, 'password', "unknown")  # Password stored during login
                 ip = self.protocol.transport.getPeer().host
-                session_id = getattr(self.protocol.session, 'id', "unknown_session")
+                session_id = self.protocol.session.id
 
                 # Integrate with persistence
-                persistent_fs_path = get_or_create_persistent_fs(
-                    username=username,
-                    password=password,
-                    ip=ip,
-                    session_id=session_id
-                )
-                changes = {pname: {"type": "directory", "created": True}}
+                persistent_fs_path = get_or_create_persistent_fs(username, password, ip, session_id)
+                changes = {pname: {"type": "directory", "created": True, "uid": uid, "gid": gid}}
                 save_persistent_changes(persistent_fs_path, changes)
 
                 log.msg(f"Persisted mkdir for {pname} to {persistent_fs_path}")
