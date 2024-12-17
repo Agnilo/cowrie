@@ -18,10 +18,7 @@ services:
     volumes:
       - ./etc:/cowrie/cowrie-git/etc
       - ./logs:/cowrie/cowrie-git/var/log/cowrie
-      - type: tmpfs
-        target: /cowrie/cowrie-git/var/persistent_fs
-        tmpfs:
-          mode: 755
+      - tmpfs:/cowrie/cowrie-git/var/persistent_fs
     environment:
       COWRIE_MYSQL_DATABASE: bakCow
       COWRIE_MYSQL_HOST: mysql
@@ -45,6 +42,8 @@ services:
 
 volumes:
   mysql_data:
+  tmpfs:
+    driver: local
 
 networks:
   cowrie-network:
