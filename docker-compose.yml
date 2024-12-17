@@ -19,6 +19,10 @@ services:
       - ./etc:/cowrie/cowrie-git/etc
       - ./logs:/cowrie/cowrie-git/var/log/cowrie
       - ./var/persistent_fs:/cowrie/cowrie-git/var/persistent_fs
+      - type: tmpfs
+        target: /cowrie/cowrie-git/var/persistent_fs
+        tmpfs:
+        mode: 755
     environment:
       COWRIE_MYSQL_DATABASE: bakCow
       COWRIE_MYSQL_HOST: mysql
