@@ -56,9 +56,9 @@ def get_config_path() -> list[str]:
     root = "/".join(current_path.split("/")[:-3])
 
     config_files = [
-        join(root, "etc/cowrie.cfg"),
         join(root, "etc/cowrie.cfg.dist"),
         "/etc/cowrie/cowrie.cfg",
+        join(root, "etc/cowrie.cfg"),
         join(root, "cowrie.cfg"),
     ]
     found_confs = [path for path in config_files if exists(path)]
