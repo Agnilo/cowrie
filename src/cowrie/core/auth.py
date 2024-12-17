@@ -10,6 +10,7 @@ from __future__ import annotations
 import configparser
 import json
 import re
+import os
 import uuid
 from collections import OrderedDict
 from os import path
@@ -57,7 +58,7 @@ class UserDB:
                 database="bakCow"
             )
             if connection.is_connected():
-                log.msg("Connected to MySQL database")
+                log.msg("Connected to MySQL database [auth]")
             return connection
         except mysql.connector.Error as e:
             log.msg(f"MySQL connection error: {e}")
@@ -69,9 +70,14 @@ class UserDB:
         """
         dblines: list[str]
 
-        userdb_path = "{}/userdb.txt".format(CowrieConfig.get("honeypot", "etc_path"))
+        #userdb_path = "{}/userdb.txt".format(CowrieConfig.get("honeypot", "etc_path"))
+        userdb_path = "/cowrie/cowrie-git/etc/userdb.txt"
 
         log.msg(f"Attempting to read user database from: {userdb_path}")
+
+        # Safeguard to check if the file exists
+        if not os.path.isfile(userdb_path):
+            raise FileNotFoundError(f"User database file not found at: {userdb_path}")
 
         try:
             with open(userdb_path, encoding="ascii") as db:
