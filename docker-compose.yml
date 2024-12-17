@@ -9,11 +9,6 @@ services:
     restart: always
     security_opt:
       - "no-new-privileges:true"
-    entrypoint: |
-      bash -c "
-      chown -R 1000:1000 /cowrie/var/persistent_fs
-      exec /cowrie/cowrie-env/bin/twistd -n cowrie
-      "
     group_add:
       - "1000"
     networks:
