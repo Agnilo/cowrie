@@ -14,7 +14,7 @@ services:
     volumes:
       - ./etc:/cowrie/cowrie-git/etc
       - ./logs:/cowrie/cowrie-git/var/log/cowrie
-      - ./persistent_fs:/cowrie/cowrie-git/var/persistent_fs
+      - ./var:/cowrie/cowrie-git/var
     environment:
       COWRIE_MYSQL_DATABASE: bakCow
       COWRIE_MYSQL_HOST: mysql
