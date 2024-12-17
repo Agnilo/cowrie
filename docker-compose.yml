@@ -7,10 +7,19 @@ services:
       dockerfile: Dockerfile
     image: cowrie/cowrie:latest
     restart: always
+    security_opt:
+      - "no-new-privileges:true"
+    entrypoint: |
+      bash -c "
+      chown -R 1000:1000 /cowrie/var/persistent_fs
+      exec /cowrie/cowrie-env/bin/twistd -n cowrie
+      "
+    group_add:
+      - "1000"
     networks:
       - cowrie-network
     ports:
-      - "2222:2222"  # Maps port 2222 on the host to port 22 in the container
+      - "2222:2222"  # SSH honeypot exposed on port 2222 (host)
     volumes:
       - ./etc:/cowrie/cowrie-git/etc
       - ./logs:/cowrie/cowrie-git/var/log/cowrie
