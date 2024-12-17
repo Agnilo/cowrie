@@ -47,6 +47,9 @@ class UserDB:
         """
 
         dblines: list[str]
+        userdb_path = "{}/userdb.txt".format(CowrieConfig.get("honeypot", "etc_path"))
+        log.msg(f"Attempting to read user database from: {userdb_path}")
+        
         try:
             with open(
                 "{}/userdb.txt".format(CowrieConfig.get("honeypot", "etc_path")),
