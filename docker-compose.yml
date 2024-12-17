@@ -7,18 +7,13 @@ services:
       dockerfile: Dockerfile
     image: cowrie/cowrie:latest
     restart: always
-    security_opt:
-      - "no-new-privileges:true"
-    group_add:
-      - "1000"
     networks:
       - cowrie-network
     ports:
-      - "2222:2222"  # SSH honeypot exposed on port 2222 (host)
+      - "2222:2222"  # Maps port 2222 on the host to port 22 in the container
     volumes:
-      - ./cowrie-etc:/cowrie/cowrie-git/etc
+      - ./etc:/cowrie/etc
       - ./logs:/cowrie/cowrie-git/var/log/cowrie
-      - tmpfs:/cowrie/cowrie-git/var/persistent_fs
     environment:
       COWRIE_MYSQL_DATABASE: bakCow
       COWRIE_MYSQL_HOST: mysql
@@ -42,8 +37,6 @@ services:
 
 volumes:
   mysql_data:
-  tmpfs:
-    driver: local
 
 networks:
   cowrie-network:

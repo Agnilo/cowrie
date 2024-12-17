@@ -20,50 +20,9 @@ from twisted.protocols.policies import TimeoutMixin
 from twisted.python import failure, log
 
 import cowrie.commands
-from cowrie.core.persistence import get_or_create_persistent_fs,save_persistent_changes
 from cowrie.core.config import CowrieConfig
 from cowrie.shell import command, honeypot
-import pickle
 
-import mysql.connector
-from mysql.connector import Error
-import os
-
-BASE_FS_DIR = "var/persistent_fs"  # Base directory for persistent filesystems
-DEFAULT_FS_PICKLE = "/cowrie/cowrie-git/src/cowrie/data/custom.pickle"
-
-def connect_to_db():
-    try:
-        connection = mysql.connector.connect(
-            host="cowrie_mysql_1",
-            user="shizuka",
-            password="haveANiceDay",
-            database="bakCow"
-        )
-        if connection.is_connected():
-            log.msg("Connected to MySQL database")
-        return connection
-    except Error as e:
-        log.msg(f"Error connecting to database: {e}")
-        return None
-
-def get_persistent_fs(username, password, ip):
-    """
-    Retrieve or create a persistent filesystem path for a user.
-    """
-    fs_dir = os.path.join(BASE_FS_DIR, f"{username}_{password}_{ip}")
-    fs_path = os.path.join(fs_dir, "fs.pickle")
-
-    if not os.path.exists(fs_dir):
-        os.makedirs(fs_dir, exist_ok=True)
-        # Copy the default fs.pickle to the user's directory
-        import shutil
-        shutil.copy(DEFAULT_FS_PICKLE, fs_path)
-        log.msg(f"Created new persistent filesystem: {fs_path}")
-    else:
-        log.msg(f"Using existing persistent filesystem: {fs_path}")
-
-    return fs_path
 
 class HoneyPotBaseProtocol(insults.TerminalProtocol, TimeoutMixin):
     """
@@ -296,32 +255,6 @@ class HoneyPotInteractiveProtocol(HoneyPotBaseProtocol, recvline.HistoricRecvLin
         HoneyPotBaseProtocol.__init__(self, avatar)
 
     def connectionMade(self) -> None:
-        """
-        Load persistent filesystem and set up the interactive shell.
-        """
-        # Load persistent filesystem dynamically
-        try:
-            username = self.user.username
-            password = getattr(self.user.avatar, "password", "default")  # Handle missing password gracefully
-            ip_address = self.realClientIP
-
-            # Fetch or create the persistent filesystem path
-            persistent_fs_path = get_or_create_persistent_fs(username, password, ip_address, self.user.server.sessionno)
-                
-            # Load the filesystem data from the persistent fs.pickle
-            with open(persistent_fs_path, "rb") as f:
-                self.fs = pickle.load(f)  # Load the persistent filesystem as a dictionary
-                
-            log.msg(f"Loaded persistent filesystem: {persistent_fs_path}")
-
-        except Exception as e:
-            log.err(f"Error loading persistent filesystem: {e}")
-            # Load the default filesystem if persistence fails
-            with open(DEFAULT_FS_PICKLE, "rb") as f:
-                self.fs = pickle.load(f)
-            log.msg("Loaded default filesystem as fallback.")
-
-        # Start the interactive shell
         self.displayMOTD()
 
         HoneyPotBaseProtocol.connectionMade(self)
@@ -362,26 +295,6 @@ class HoneyPotInteractiveProtocol(HoneyPotBaseProtocol, recvline.HistoricRecvLin
         assert self.terminal is not None
         self.terminal.write(b"timed out waiting for input: auto-logout\n")
         HoneyPotBaseProtocol.timeoutConnection(self)
-
-    def set_filesystem(self, fs_path: str) -> None:
-        """
-        Set the filesystem for the current session dynamically.
-        """
-        try:
-            if os.path.exists(fs_path):
-                with open(fs_path, "rb") as f:
-                    self.fs = pickle.load(f)  # Load the new filesystem from pickle
-                log.msg(f"Switched to persistent filesystem: {fs_path}")
-            else:
-                log.msg(f"Persistent filesystem not found at {fs_path}. Creating new filesystem.")
-                with open(DEFAULT_FS_PICKLE, "rb") as f:
-                    self.fs = pickle.load(f)
-                save_persistent_changes(fs_path, self.fs)  # Save a copy of the default filesystem
-        except Exception as e:
-            log.err(f"Error switching to persistent filesystem: {e}")
-            log.msg("Falling back to default filesystem.")
-            with open(DEFAULT_FS_PICKLE, "rb") as f:
-                self.fs = pickle.load(f)
 
     def connectionLost(self, reason: failure.Failure = connectionDone) -> None:
         HoneyPotBaseProtocol.connectionLost(self, reason)

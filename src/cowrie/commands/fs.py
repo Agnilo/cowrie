@@ -19,8 +19,6 @@ from cowrie.shell import fs
 from cowrie.shell.command import HoneyPotCommand
 from typing import TYPE_CHECKING
 
-from cowrie.core.persistence import get_or_create_persistent_fs, save_persistent_changes
-
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -559,38 +557,18 @@ class Command_mkdir(HoneyPotCommand):
     def call(self) -> None:
         for f in self.args:
             pname = self.fs.resolve_path(f, self.protocol.cwd)
-
             if self.fs.exists(pname):
                 self.errorWrite(f"mkdir: cannot create directory `{f}': File exists\n")
-                continue
-            
+                return
             try:
-                # Default UID/GID of the user creating the directory
-                uid = self.protocol.user.uid if self.protocol.user.uid else 1000
-                gid = self.protocol.user.gid if self.protocol.user.gid else 1000                
-                
-                self.fs.mkdir(pname, uid, gid, 4096, 16877)
-
-                # Fetch session and authentication details
-                username = self.protocol.user.username
-                password = getattr(self.protocol.user, 'password', "unknown")  # Password stored during login
-                ip = self.protocol.transport.getPeer().host
-                session_id = self.protocol.session.id
-
-                # Integrate with persistence
-                persistent_fs_path = get_or_create_persistent_fs(username, password, ip, session_id)
-                changes = {pname: {"type": "directory", "created": True, "uid": uid, "gid": gid}}
-                save_persistent_changes(persistent_fs_path, changes)
-
-                log.msg(f"Persisted mkdir for {pname} to {persistent_fs_path}")
-
+                self.fs.mkdir(
+                    pname, self.protocol.user.uid, self.protocol.user.gid, 4096, 16877
+                )
             except fs.FileNotFound:
                 self.errorWrite(
                     f"mkdir: cannot create directory `{f}': No such file or directory\n"
                 )
-            except Exception as e:
-                log.msg(f"Unexpected error during mkdir: {e}")
-                self.errorWrite(f"mkdir: unexpected error: {str(e)}\n")
+            return
 
 
 commands["/bin/mkdir"] = Command_mkdir
