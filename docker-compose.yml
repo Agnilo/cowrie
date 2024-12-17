@@ -18,7 +18,6 @@ services:
     volumes:
       - ./etc:/cowrie/cowrie-git/etc
       - ./logs:/cowrie/cowrie-git/var/log/cowrie
-      - ./var/persistent_fs:/cowrie/cowrie-git/var/persistent_fs
       - type: tmpfs
         target: /cowrie/cowrie-git/var/persistent_fs
         tmpfs:
