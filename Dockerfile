@@ -120,13 +120,4 @@ RUN [ "python3", "/cowrie/cowrie-git/bin/regen-dropin.cache" ]
 ENTRYPOINT [ "/cowrie/cowrie-env/bin/python3" ]
 CMD [ "/cowrie/cowrie-env/bin/twistd", "-n", "--umask=0022", "--pidfile=", "cowrie" ]
 
-FROM cowrie/cowrie:latest
-
-# Ensure the persistent FS directory exists with proper permissions
-RUN ["/usr/bin/mkdir", "-p", "/cowrie/cowrie-git/var/persistent_fs"]
-RUN ["/usr/bin/chown", "-R", "1000:1000", "/cowrie/cowrie-git/var/persistent_fs"]
-
-# Default entrypoint for Cowrie
-ENTRYPOINT ["/cowrie/cowrie-env/bin/twistd", "-n", "cowrie"]
-
 EXPOSE 2222 2223
