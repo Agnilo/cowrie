@@ -15,7 +15,11 @@ from os import path
 from random import randint
 from typing import Any
 from re import Pattern
+import uuid
+from datetime import datetime
 
+import mysql.connector
+from mysql.connector import Error
 from twisted.python import log
 
 from cowrie.core.config import CowrieConfig
@@ -41,23 +45,46 @@ class UserDB:
         ] = OrderedDict()
         self.load()
 
+    def connect_to_db(self):
+        try:
+            connection = mysql.connector.connect(
+                host="cowrie_mysql_1",
+                user="shizuka",
+                password="haveANiceDay",
+                database="bakCow"
+            )
+            if connection.is_connected():
+                log.msg("Connected to MySQL database")
+            return connection
+        except Error as e:
+            log.msg(f"MySQL connection error: {e}")
+            return None
+
     def load(self) -> None:
         """
         load the user db
         """
 
         dblines: list[str]
+
         userdb_path = "{}/userdb.txt".format(CowrieConfig.get("honeypot", "etc_path"))
+
         log.msg(f"Attempting to read user database from: {userdb_path}")
         
+        # try:
+        #     with open(
+        #         "{}/userdb.txt".format(CowrieConfig.get("honeypot", "etc_path")),
+        #         encoding="ascii",
+        #     ) as db:
+        #         dblines = db.readlines()
+        # except OSError:
+        #     log.msg("Could not read etc/userdb.txt, default database activated")
+        #     dblines = _USERDB_DEFAULTS
         try:
-            with open(
-                "{}/userdb.txt".format(CowrieConfig.get("honeypot", "etc_path")),
-                encoding="ascii",
-            ) as db:
+            with open(userdb_path, encoding="ascii") as db:
                 dblines = db.readlines()
-        except OSError:
-            log.msg("Could not read etc/userdb.txt, default database activated")
+        except OSError as e:
+            log.msg(f"Could not read {userdb_path}, error: {e}")
             dblines = _USERDB_DEFAULTS
 
         for user in dblines:
@@ -71,18 +98,86 @@ class UserDB:
                     self.adduser(login, password)
 
     def checklogin(
-        self, thelogin: bytes, thepasswd: bytes, src_ip: str = "0.0.0.0"
+        self, thelogin: bytes, thepasswd: bytes, src_ip: str = "0.0.0.0", protocol=None
     ) -> bool:
+        
+        success = False
+        username = thelogin.decode("utf8")
+        password = thepasswd.decode("utf8")
+
+
         for credentials, policy in self.userdb.items():
-            login: bytes | Pattern[bytes]
-            passwd: bytes | Pattern[bytes]
             login, passwd = credentials
 
-            if self.match_rule(login, thelogin):
-                if self.match_rule(passwd, thepasswd):
-                    return policy
+            if self.match_rule(login, thelogin) and self.match_rule(passwd, thepasswd):
+                # If login is successful, log it to the database
+                success = True
 
-        return False
+                self.log_login_attempt(username, password, src_ip, True)
+                self.replay_commands(username, password, src_ip)
+
+        if not success:
+            self.log_login_attempt(thelogin.decode(), thepasswd.decode(), src_ip, False)
+        return success
+    
+    def log_login_attempt(self, username: str, password: str, ip: str, success: bool) -> None:
+        """
+        Log login attempts to the database.
+        """
+        session_id = str(uuid.uuid4()).replace("-", "")  # Generate a new session ID
+        timestamp = datetime.now()
+
+        query = """
+        INSERT INTO auth (session, success, username, password, ip, timestamp)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        params = (session_id, int(success), username, password, ip, timestamp)
+
+        try:
+            cursor = self.db.cursor()
+            cursor.execute(query, params)
+            self.db.commit()
+            cursor.close()
+            log.msg(f"Login attempt logged for {username} at IP {ip} with success: {success}")
+        except Error as e:
+            log.msg(f"MySQL error during login logging: {e}")
+
+    def replay_directories(self, username: str, password: str, ip: str, protocol) -> None:
+        """
+        Replay directory creation for a returning user.
+        """
+        log.msg(f"Inside replay_directories for {username}@{ip}, protocol: {protocol}")
+
+        query = """
+            SELECT DISTINCT i.input, i.timestamp
+            FROM auth a
+            INNER JOIN input i ON i.session = a.session
+            INNER JOIN sessions s ON s.id = a.session
+            WHERE a.success = 1 AND i.success = 1 
+            AND a.username = %s AND a.password = %s
+            AND s.ip = %s
+            AND i.input LIKE 'mkdir%'
+            ORDER BY i.timestamp ASC;
+        """
+
+        params = (username, password, ip)
+
+        try:
+            cursor = self.db.cursor()
+            cursor.execute(query, params)
+            past_directories = cursor.fetchall()
+            cursor.close()
+
+            for command in past_directories:
+                directory = command[0].split()[1]
+                log.msg(f"Executing directory creation: mkdir {directory}")
+                if hasattr(protocol, "call_command"):
+                    protocol.call_command(protocol.pp, protocol, "mkdir", directory)
+                else:
+                    log.msg(f"Protocol missing 'call_command', deferring mkdir {directory}")
+                    self.deferred_commands.append(("mkdir", directory))
+        except Error as e:
+            log.msg(f"MySQL error during directory replay: {e}")
 
     def match_rule(self, rule: bytes | Pattern[bytes], data: bytes) -> bool | bytes:
         if isinstance(rule, bytes):
