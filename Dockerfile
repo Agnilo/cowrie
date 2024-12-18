@@ -4,7 +4,7 @@
 
 ARG ARCH=
 ARG SOURCE_DATE_EPOCH
-ARG TAG
+ARG TAG=latest
 FROM ${ARCH}debian:bookworm-slim AS builder
 
 WORKDIR /
@@ -17,9 +17,9 @@ ENV COWRIE_GROUP=cowrie \
     COWRIE_HOME=/cowrie
 
 # Set locale to UTF-8, otherwise upstream libraries have bytes/string conversion issues
-ENV LC_ALL=en_US.UTF-8 \
-    LANG=en_US.UTF-8 \
-    LANGUAGE=en_US.UTF-8
+ENV LC_ALL=C.UTF-8 \
+    LANG=C.UTF-8 \
+    LANGUAGE=C.UTF-8
 
 RUN groupadd -r ${COWRIE_GROUP} && \
     useradd -r -d ${COWRIE_HOME} -m -g ${COWRIE_GROUP} ${COWRIE_USER}
@@ -58,6 +58,7 @@ RUN python3 -m venv cowrie-env && \
     pip install --no-cache-dir --upgrade -r ${COWRIE_HOME}/cowrie-git/requirements.txt && \
     pip install --no-cache-dir --upgrade -r ${COWRIE_HOME}/cowrie-git/requirements-output.txt && \
     pip install --no-cache-dir mysql-connector-python
+
 COPY --chown=${COWRIE_USER}:${COWRIE_GROUP} . ${COWRIE_HOME}/cowrie-git
 
 
