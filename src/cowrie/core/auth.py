@@ -143,42 +143,37 @@ class UserDB:
         except Error as e:
             log.msg(f"MySQL error during login logging: {e}")
 
-    def replay_directories(self, username: str, password: str, ip: str, protocol) -> None:
+    def replay_commands(self, username: str, password: str, ip: str) -> None:
         """
-        Replay directory creation for a returning user.
+        Replay previously executed commands for returning attackers.
         """
-        log.msg(f"Inside replay_directories for {username}@{ip}, protocol: {protocol}")
-
         query = """
             SELECT DISTINCT i.input, i.timestamp
             FROM auth a
             INNER JOIN input i ON i.session = a.session
             INNER JOIN sessions s ON s.id = a.session
             WHERE a.success = 1 AND i.success = 1 
-            AND a.username = %s AND a.password = %s
+            AND a.username = %s AND a.password = %s 
             AND s.ip = %s
-            AND i.input LIKE 'mkdir%'
+            AND i.input NOT LIKE '%ping%' 
+            AND i.input NOT LIKE '%exit%' 
+            AND i.input NOT LIKE '%ls%' 
+            AND i.input NOT LIKE '%curl%' 
+            AND i.input NOT LIKE '%wget%'
             ORDER BY i.timestamp ASC;
         """
-
         params = (username, password, ip)
 
         try:
             cursor = self.db.cursor()
             cursor.execute(query, params)
-            past_directories = cursor.fetchall()
+            past_commands = cursor.fetchall()
             cursor.close()
 
-            for command in past_directories:
-                directory = command[0].split()[1]
-                log.msg(f"Executing directory creation: mkdir {directory}")
-                if hasattr(protocol, "call_command"):
-                    protocol.call_command(protocol.pp, protocol, "mkdir", directory)
-                else:
-                    log.msg(f"Protocol missing 'call_command', deferring mkdir {directory}")
-                    self.deferred_commands.append(("mkdir", directory))
+            for command in past_commands:
+                log.msg(f"Replaying command for {username}@{ip}: {command[0]}")
         except Error as e:
-            log.msg(f"MySQL error during directory replay: {e}")
+            log.msg(f"MySQL error during command replay: {e}")
 
     def match_rule(self, rule: bytes | Pattern[bytes], data: bytes) -> bool | bytes:
         if isinstance(rule, bytes):
