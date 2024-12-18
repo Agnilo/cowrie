@@ -21,5 +21,6 @@ tomcat:x:*
 oracle:x:*
 admin:x:!admin
 cowrie:x:pass
+cowrie:x:cowrie
 *:x:somepassword
 *:x:*
