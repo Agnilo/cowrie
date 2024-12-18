@@ -43,6 +43,7 @@ class UserDB:
         self.userdb: dict[
             tuple[Pattern[bytes] | bytes, Pattern[bytes] | bytes], bool
         ] = OrderedDict()
+        self.db = self.connect_to_db()
         self.load()
 
     def connect_to_db(self):
