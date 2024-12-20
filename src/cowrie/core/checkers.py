@@ -97,7 +97,10 @@ class HoneypotPasswordChecker:
     def requestAvatarId(self, credentials):
 
         protocol = getattr(credentials, "protocol", None)
-        log.msg(f"Protocol in request avatar id {protocol}")
+        log.msg(f"Protocol type: {type(protocol)}")
+        if protocol:
+            log.msg(f"Protocol dir: {dir(protocol)}")
+            log.msg(f"Transport dir: {dir(getattr(protocol, 'transport', None))}")
 
         if hasattr(credentials, "password"):
             if self.checkUserPass(
