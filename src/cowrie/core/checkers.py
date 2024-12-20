@@ -97,10 +97,6 @@ class HoneypotPasswordChecker:
     def requestAvatarId(self, credentials):
 
         protocol = getattr(credentials, "protocol", None)
-        log.msg(f"Protocol type: {type(protocol)}")
-        if protocol:
-            log.msg(f"Protocol dir: {dir(protocol)}")
-            log.msg(f"Transport dir: {dir(getattr(protocol, 'transport', None))}")
 
         if hasattr(credentials, "password"):
             if self.checkUserPass(
@@ -141,7 +137,9 @@ class HoneypotPasswordChecker:
 
         if protocol:
             try:
-                session_id = getattr(protocol.transport, "transportId", "unknown")
+                # Fetch transportId directly from protocol
+                session_id = getattr(protocol, "transportId", "unknown")
+                log.msg(f"Session ID fetched directly from protocol: {session_id}")
             except AttributeError:
                 log.msg(f"Could not retrieve session_id from protocol for {username}@{ip}")
 
