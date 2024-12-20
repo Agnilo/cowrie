@@ -11,18 +11,22 @@ import configparser
 import json
 import re
 from collections import OrderedDict
+from datetime import datetime
 from os import path
 from random import randint
-from typing import Any
 from re import Pattern
-import uuid
-from datetime import datetime
+from typing import Any
 
 import mysql.connector
 from mysql.connector import Error
 from twisted.python import log
+from twisted.internet.defer import Deferred
 
+# Cowrie-specific imports
 from cowrie.core.config import CowrieConfig
+from cowrie.ssh.transport import HoneyPotSSHTransport
+from cowrie.ssh.session import HoneyPotSSHSession
+
 
 _USERDB_DEFAULTS: list[str] = [
     "root:x:!root",
@@ -60,6 +64,7 @@ class UserDB:
         except Error as e:
             log.msg(f"MySQL connection error: {e}")
             return None
+            
 
     def load(self) -> None:
         """
@@ -106,6 +111,7 @@ class UserDB:
         username = thelogin.decode("utf8")
         password = thepasswd.decode("utf8")
 
+        session_id = getattr(protocol, "session_id", "unknown") if protocol else "unknown"
 
         for credentials, policy in self.userdb.items():
             login, passwd = credentials
@@ -113,18 +119,20 @@ class UserDB:
             if self.match_rule(login, thelogin) and self.match_rule(passwd, thepasswd):
                 # If login is successful
                 success = True
-                self.replay_commands(username, password, src_ip)
-                break  # Exit the loop once a match is found
+                self.log_login_attempt(username, password, src_ip, True, session_id)
 
-        # Log the login attempt once based on the result
-        self.log_login_attempt(username, password, src_ip, success)
+                # Replay commands for the user session
+                self.replay_commands(username, password, src_ip, protocol)
+
+        if not success:
+            self.log_login_attempt(username, password, src_ip, False, session_id)
         return success
     
-    def log_login_attempt(self, username: str, password: str, ip: str, success: bool) -> None:
+    def log_login_attempt(self, username: str, password: str, ip: str, success: bool, session_id: str) -> None:
         """
         Log login attempts to the database.
         """
-        session_id = str(uuid.uuid4()).replace("-", "")  # Generate a new session ID
+        # session_id = str(uuid.uuid4()).replace("-", "")  # Generate a new session ID
         timestamp = datetime.now()
 
         query = """
@@ -142,10 +150,17 @@ class UserDB:
         except Error as e:
             log.msg(f"MySQL error during login logging: {e}")
 
-    def replay_commands(self, username: str, password: str, ip: str) -> None:
+    def replay_commands(self, username: str, password: str, ip: str, protocol=None) -> None:
         """
         Replay previously executed commands for returning attackers.
         """
+
+        if not protocol or not hasattr(protocol, "session_id"):
+            log.msg(f"Protocol object or session ID is missing for {username}@{ip}. Cannot replay commands.")
+            return
+    
+        session_id = protocol.session_id
+
         query = """
             SELECT DISTINCT i.input, i.timestamp
             FROM auth a
@@ -171,6 +186,10 @@ class UserDB:
 
             for command in past_commands:
                 log.msg(f"Replaying command for {username}@{ip}: {command[0]}")
+
+                # Inject commands into the current session
+                protocol.cmdstack[-1].lineReceived(command[0].encode())
+
         except Error as e:
             log.msg(f"MySQL error during command replay: {e}")
 
