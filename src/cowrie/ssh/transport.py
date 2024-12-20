@@ -61,12 +61,16 @@ class HoneyPotSSHTransport(transport.SSHServerTransport, TimeoutMixin):
         self.buf = b""
 
         self.transportId = uuid.uuid4().hex[:12]
-        HoneyPotSSHTransport.protocol_map[self.transportId] = self
         src_ip: str = self.transport.getPeer().host
 
         ipv4_search = self.ipv4rex.search(src_ip)
         if ipv4_search is not None:
             src_ip = ipv4_search.group(1)
+
+        # Add protocol to protocol_map here
+        if hasattr(self.factory, "protocol_map"):
+            self.factory.protocol_map[self.transportId] = self
+            log.msg(f"Added protocol to protocol_map for session {self.transportId}")
 
         log.msg(
             eventid="cowrie.session.connect",
@@ -252,6 +256,10 @@ class HoneyPotSSHTransport(transport.SSHServerTransport, TimeoutMixin):
         This seems to be the only reliable place of catching lost connection
         """
         self.setTimeout(None)
+        if hasattr(self.factory, "protocol_map") and self.transportId in self.factory.protocol_map:
+            del self.factory.protocol_map[self.transportId]
+            log.msg(f"Removed protocol from protocol_map for session {self.transportId}")
+
         transport.SSHServerTransport.connectionLost(self, reason)
         self.transport.connectionLost(reason)
         self.transport = None
@@ -261,8 +269,6 @@ class HoneyPotSSHTransport(transport.SSHServerTransport, TimeoutMixin):
             format="Connection lost after %(duration)s seconds",
             duration=duration,
         )
-        if self.transportId in HoneyPotSSHTransport.protocol_map:
-            del HoneyPotSSHTransport.protocol_map[self.transportId]
 
     def sendDisconnect(self, reason, desc):
         """

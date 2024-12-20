@@ -47,7 +47,6 @@ class CowrieSSHFactory(factory.SSHFactory):
         self.backend: str = backend
         self.privateKeys = {}
         self.publicKeys = {}
-        self.protocol_map = {}
         self.services = {
             b"ssh-userauth": (
                 ProxySSHAuthServer
