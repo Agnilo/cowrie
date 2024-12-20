@@ -95,9 +95,12 @@ class HoneypotPasswordChecker:
     )
 
     def requestAvatarId(self, credentials):
+
+        protocol = getattr(credentials, "protocol", None)
+
         if hasattr(credentials, "password"):
             if self.checkUserPass(
-                credentials.username, credentials.password, credentials.ip
+                credentials.username, credentials.password, credentials.ip, protocol
             ):
                 return defer.succeed(credentials.username)
             return defer.fail(UnauthorizedLogin())

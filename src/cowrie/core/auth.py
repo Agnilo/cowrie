@@ -107,6 +107,10 @@ class UserDB:
         username = thelogin.decode("utf8")
         password = thepasswd.decode("utf8")
 
+        # Use protocol for replay_commands
+        session_id = getattr(protocol, "session_id", "unknown") if protocol else "unknown"
+
+        log.msg(f"session_id in auth.py: {session_id}")
 
         for credentials, policy in self.userdb.items():
             login, passwd = credentials
@@ -114,18 +118,19 @@ class UserDB:
             if self.match_rule(login, thelogin) and self.match_rule(passwd, thepasswd):
                 # If login is successful
                 success = True
-                self.replay_commands(username, password, src_ip)
+                self.replay_commands(username, password, src_ip, protocol)
                 break  # Exit the loop once a match is found
 
         # Log the login attempt once based on the result
-        self.log_login_attempt(username, password, src_ip, success)
+        self.log_login_attempt(username, password, src_ip, success, session_id)
         return success
     
-    def log_login_attempt(self, username: str, password: str, ip: str, success: bool) -> None:
+    def log_login_attempt(self, username: str, password: str, ip: str, success: bool, session_id: str) -> None:
         """
         Log login attempts to the database.
         """
-        session_id = str(uuid.uuid4()).replace("-", "")  # Generate a new session ID
+        #session_id = str(uuid.uuid4()).replace("-", "")  # Generate a new session ID
+        
         timestamp = datetime.now()
 
         query = """
@@ -147,6 +152,11 @@ class UserDB:
         """
         Replay previously executed commands for returning attackers.
         """
+
+        if not protocol or not hasattr(protocol, "cmdstack"):
+            log.msg(f"Protocol object or cmdstack is missing for {username}@{ip}. Cannot replay commands.")
+            return
+
         query = """
             SELECT DISTINCT i.input, i.timestamp
             FROM auth a
@@ -173,9 +183,10 @@ class UserDB:
             for command in past_commands:
                 log.msg(f"Replaying command for {username}@{ip}: {command[0]}")
 
-                # If protocol exists, inject the command into the shell
-                if protocol and hasattr(protocol, "cmdstack"):
-                    protocol.cmdstack[-1].lineReceived(command[0].encode())
+            # Inject command into the current session shell
+            if protocol.cmdstack:
+                shell = protocol.cmdstack[-1]  # Get the active shell
+                shell.lineReceived(command.encode("utf-8"))  # Simulate command input
 
         except Error as e:
             log.msg(f"MySQL error during command replay: {e}")
