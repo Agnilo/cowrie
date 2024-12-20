@@ -22,6 +22,7 @@ from twisted.python import failure, log
 from cowrie.core import credentials as conchcredentials
 from cowrie.core.config import CowrieConfig
 import cowrie.core.auth  # noqa: F401
+from cowrie.shell import protocol
 
 
 @implementer(ICredentialsChecker)
@@ -116,7 +117,7 @@ class HoneypotPasswordChecker:
                 return defer.succeed(username)
         return defer.fail(UnauthorizedLogin())
 
-    def checkUserPass(self, theusername: bytes, thepassword: bytes, ip: str) -> bool:
+    def checkUserPass(self, theusername: bytes, thepassword: bytes, ip: str, protocol = None) -> bool:
         # Is the auth_class defined in the config file?
         authclass = CowrieConfig.get("honeypot", "auth_class", fallback="UserDB")
         authmodule = "cowrie.core.auth"
@@ -129,7 +130,7 @@ class HoneypotPasswordChecker:
 
         theauth = authname()
 
-        if theauth.checklogin(theusername, thepassword, ip):
+        if theauth.checklogin(theusername, thepassword, ip, protocol):
             log.msg(
                 eventid="cowrie.login.success",
                 format="login attempt [%(username)s/%(password)s] succeeded",
