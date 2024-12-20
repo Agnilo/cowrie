@@ -22,6 +22,7 @@ from twisted.conch.ssh.common import getNS
 from twisted.internet.protocol import connectionDone
 from twisted.protocols.policies import TimeoutMixin
 from twisted.python import failure, log, randbytes
+from cowrie.core.auth import UserDB
 
 from cowrie.core.config import CowrieConfig
 
@@ -254,8 +255,9 @@ class HoneyPotSSHTransport(transport.SSHServerTransport, TimeoutMixin):
         This seems to be the only reliable place of catching lost connection
         """
         self.setTimeout(None)
-        if hasattr(self.factory, "protocol_map") and self.transportId in self.factory.protocol_map:
-            del self.factory.protocol_map[self.transportId]
+
+        if self.transportId in UserDB.protocol_map:
+            del UserDB.protocol_map[self.transportId]
             log.msg(f"Removed protocol from protocol_map for session {self.transportId}")
 
         transport.SSHServerTransport.connectionLost(self, reason)

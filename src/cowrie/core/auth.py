@@ -40,12 +40,13 @@ class UserDB:
     By Walter de Jong <walter@sara.nl>
     """
 
+    protocol_map = {}
+
     def __init__(self) -> None:
         self.userdb: dict[
             tuple[Pattern[bytes] | bytes, Pattern[bytes] | bytes], bool
         ] = OrderedDict()
         self.db = self.connect_to_db()
-        self.protocol_map: dict[str, Any] = {}
         self.load()
 
     def connect_to_db(self):
