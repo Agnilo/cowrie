@@ -107,13 +107,6 @@ class UserDB:
         success = False
         username = thelogin.decode("utf8")
         password = thepasswd.decode("utf8")
-        session_id = getattr(protocol, "session_id", "unknown") if protocol else "unknown"
-
-        # Use protocol for replay_commands
-        # session_id = getattr(protocol, "session_id", "unknown") if protocol else "unknown"
-
-        if protocol and session_id != "unknown":
-            self.protocol_map[session_id] = protocol  # Store the protocol object
 
         if session_id is None:
             log.msg("Session ID not provided during checklogin")
