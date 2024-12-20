@@ -42,6 +42,7 @@ class HoneyPotSSHTransport(transport.SSHServerTransport, TimeoutMixin):
     transport: Any
     outgoingCompression: Any
     _blockedByKeyExchange: Any
+    protocol_map = {}
 
     def __repr__(self) -> str:
         """
@@ -60,6 +61,7 @@ class HoneyPotSSHTransport(transport.SSHServerTransport, TimeoutMixin):
         self.buf = b""
 
         self.transportId = uuid.uuid4().hex[:12]
+        HoneyPotSSHTransport.protocol_map[self.transportId] = self
         src_ip: str = self.transport.getPeer().host
 
         ipv4_search = self.ipv4rex.search(src_ip)
@@ -259,6 +261,8 @@ class HoneyPotSSHTransport(transport.SSHServerTransport, TimeoutMixin):
             format="Connection lost after %(duration)s seconds",
             duration=duration,
         )
+        if self.transportId in HoneyPotSSHTransport.protocol_map:
+            del HoneyPotSSHTransport.protocol_map[self.transportId]
 
     def sendDisconnect(self, reason, desc):
         """

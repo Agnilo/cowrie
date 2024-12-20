@@ -101,7 +101,7 @@ class UserDB:
                     self.adduser(login, password)
 
     def checklogin(
-        self, thelogin: bytes, thepasswd: bytes, src_ip: str = "0.0.0.0", protocol=None
+        self, thelogin: bytes, thepasswd: bytes, src_ip: str = "0.0.0.0", session_id=None
     ) -> bool:
         
         success = False
@@ -114,6 +114,11 @@ class UserDB:
 
         if protocol and session_id != "unknown":
             self.protocol_map[session_id] = protocol  # Store the protocol object
+
+        if session_id is None:
+            log.msg("Session ID not provided during checklogin")
+        else:
+            log.msg(f"Session ID during checklogin: {session_id}")
 
         log.msg(f"session_id in auth.py: {session_id}")
 

@@ -131,9 +131,12 @@ class HoneypotPasswordChecker:
         else:
             log.msg(f"auth_class: {authclass} not found in {authmodule}")
 
+        if session_id == "unknown":
+            log.msg("Could not retrieve session_id from protocol in checkers.py")
+
         theauth = authname()
 
-        session_id = getattr(protocol, "session_id", "unknown") if protocol else "unknown"
+        session_id = getattr(protocol, "transportId", "unknown")
 
         if theauth.checklogin(theusername, thepassword, ip, session_id):
             log.msg(
