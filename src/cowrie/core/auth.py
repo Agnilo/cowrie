@@ -154,6 +154,8 @@ class UserDB:
         Replay previously executed commands for returning attackers.
         """
 
+        session_id = session_id.strip().lower()
+
         query = """
             SELECT DISTINCT i.input, i.timestamp
             FROM auth a
@@ -171,6 +173,9 @@ class UserDB:
         """
         params = (username, password, ip)
 
+        log.msg(f"Current protocol_map: {self.protocol_map}")
+        log.msg(f"Trying to find protocol for session_id: {session_id}")
+
         try:
             cursor = self.db.cursor()
             cursor.execute(query, params)
@@ -180,6 +185,8 @@ class UserDB:
             protocol = self.protocol_map.get(session_id)
             if not protocol or not hasattr(protocol, "cmdstack"):
                 log.msg(f"No valid protocol object found for session {session_id}")
+                log.msg(f"Protocol map keys: {list(self.protocol_map.keys())}")
+                log.msg(f"Requested session_id: {session_id}")
                 return
 
             for command in past_commands:
