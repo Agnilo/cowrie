@@ -100,7 +100,7 @@ class UserDB:
                     self.adduser(login, password)
 
     def checklogin(
-        self, thelogin: bytes, thepasswd: bytes, src_ip: str = "0.0.0.0", protocol=None
+        self, thelogin: bytes, thepasswd: bytes, src_ip: str = "0.0.0.0", session_id="unknown"
     ) -> bool:
         
         success = False
@@ -108,7 +108,7 @@ class UserDB:
         password = thepasswd.decode("utf8")
 
         # Use protocol for replay_commands
-        session_id = getattr(protocol, "session_id", "unknown") if protocol else "unknown"
+        # session_id = getattr(protocol, "session_id", "unknown") if protocol else "unknown"
 
         log.msg(f"session_id in auth.py: {session_id}")
 
@@ -118,7 +118,7 @@ class UserDB:
             if self.match_rule(login, thelogin) and self.match_rule(passwd, thepasswd):
                 # If login is successful
                 success = True
-                self.replay_commands(username, password, src_ip, protocol)
+                self.replay_commands(username, password, src_ip, session_id)
                 break  # Exit the loop once a match is found
 
         # Log the login attempt once based on the result
@@ -148,14 +148,10 @@ class UserDB:
         except Error as e:
             log.msg(f"MySQL error during login logging: {e}")
 
-    def replay_commands(self, username: str, password: str, ip: str, protocol = None) -> None:
+    def replay_commands(self, username: str, password: str, ip: str, session_id) -> None:
         """
         Replay previously executed commands for returning attackers.
         """
-
-        if not protocol or not hasattr(protocol, "cmdstack"):
-            log.msg(f"Protocol object or cmdstack is missing for {username}@{ip}. Cannot replay commands.")
-            return
 
         query = """
             SELECT DISTINCT i.input, i.timestamp
@@ -184,9 +180,9 @@ class UserDB:
                 log.msg(f"Replaying command for {username}@{ip}: {command[0]}")
 
             # Inject command into the current session shell
-            if protocol.cmdstack:
-                shell = protocol.cmdstack[-1]  # Get the active shell
-                shell.lineReceived(command.encode("utf-8"))  # Simulate command input
+            protocol = self.protocol_map.get(session_id)
+            if protocol:
+                protocol.cmdstack[-1].lineReceived(command[0].encode())
 
         except Error as e:
             log.msg(f"MySQL error during command replay: {e}")

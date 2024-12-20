@@ -133,7 +133,9 @@ class HoneypotPasswordChecker:
 
         theauth = authname()
 
-        if theauth.checklogin(theusername, thepassword, ip, protocol):
+        session_id = getattr(protocol, "session_id", "unknown") if protocol else "unknown"
+
+        if theauth.checklogin(theusername, thepassword, ip, session_id):
             log.msg(
                 eventid="cowrie.login.success",
                 format="login attempt [%(username)s/%(password)s] succeeded",

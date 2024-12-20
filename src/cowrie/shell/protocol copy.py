@@ -59,7 +59,6 @@ class HoneyPotBaseProtocol(insults.TerminalProtocol, TimeoutMixin):
         self.clientIP: str
         self.sessionno: int
         self.factory = None
-        self.session_id = None
 
         if self.fs.exists(self.user.avatar.home):
             self.cwd = self.user.avatar.home
@@ -87,7 +86,6 @@ class HoneyPotBaseProtocol(insults.TerminalProtocol, TimeoutMixin):
     def connectionMade(self) -> None:
         pt = self.getProtoTransport()
 
-        self.session_id = getattr(pt, "transportId", "unknown") 
         self.factory = pt.factory
         self.sessionno = pt.transport.sessionno
         self.realClientIP = pt.transport.getPeer().host

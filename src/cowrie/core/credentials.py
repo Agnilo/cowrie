@@ -92,10 +92,11 @@ class UsernamePasswordIP:
     This credential interface also provides an IP address
     """
 
-    def __init__(self, username: bytes, password: bytes, ip: str) -> None:
+    def __init__(self, username: bytes, password: bytes, ip: str, protocol = None) -> None:
         self.username: bytes = username
         self.password: bytes = password
         self.ip: str = ip
+        self.protocol = protocol
 
     def checkPassword(self, password: bytes) -> bool:
         return self.password == password

@@ -236,13 +236,6 @@ class HoneyPotSSHTransport(transport.SSHServerTransport, TimeoutMixin):
             if self.incomingCompressionType == b"zlib@openssh.com":
                 self.incomingCompression = zlib.decompressobj()
 
-        #Called when the protocol sets up a service
-
-        if service.name == b"ssh-connection":
-            service.transportId = self.transportId  # Pass the transport ID
-        super().setService(service)
-
-
         transport.SSHServerTransport.setService(self, service)
 
     def connectionLost(self, reason: failure.Failure = connectionDone) -> None:
