@@ -94,30 +94,29 @@ class HoneypotPasswordChecker:
     )
 
     def requestAvatarId(self, credentials):
-        protocol = getattr(credentials, "protocol", None)  # Get protocol/session if available
         if hasattr(credentials, "password"):
             if self.checkUserPass(
-                credentials.username, credentials.password, credentials.ip, protocol
+                credentials.username, credentials.password, credentials.ip
             ):
                 return defer.succeed(credentials.username)
             return defer.fail(UnauthorizedLogin())
         if hasattr(credentials, "pamConversion"):
             return self.checkPamUser(
-                credentials.username, credentials.pamConversion, credentials.ip, protocol
+                credentials.username, credentials.pamConversion, credentials.ip
             )
         return defer.fail(UnhandledCredentials())
 
-    def checkPamUser(self, username, pamConversion, ip, protocol):
+    def checkPamUser(self, username, pamConversion, ip):
         r = pamConversion((("Password:", 1),))
-        return r.addCallback(self.cbCheckPamUser, username, ip, protocol)
+        return r.addCallback(self.cbCheckPamUser, username, ip)
 
-    def cbCheckPamUser(self, responses, username, ip, protocol):
+    def cbCheckPamUser(self, responses, username, ip):
         for response, _ in responses:
-            if self.checkUserPass(username, response, ip, protocol):
+            if self.checkUserPass(username, response, ip):
                 return defer.succeed(username)
         return defer.fail(UnauthorizedLogin())
 
-    def checkUserPass(self, theusername: bytes, thepassword: bytes, ip: str, protocol=None) -> bool:
+    def checkUserPass(self, theusername: bytes, thepassword: bytes, ip: str) -> bool:
         # Is the auth_class defined in the config file?
         authclass = CowrieConfig.get("honeypot", "auth_class", fallback="UserDB")
         authmodule = "cowrie.core.auth"
@@ -130,7 +129,7 @@ class HoneypotPasswordChecker:
 
         theauth = authname()
 
-        if theauth.checklogin(theusername, thepassword, ip, protocol):
+        if theauth.checklogin(theusername, thepassword, ip):
             log.msg(
                 eventid="cowrie.login.success",
                 format="login attempt [%(username)s/%(password)s] succeeded",
