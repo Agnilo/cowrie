@@ -173,7 +173,7 @@ class UserDB:
         """
         params = (username, password, ip)
 
-        log.msg(f"Current protocol_map: {self.protocol_map}")
+        log.msg(f"Current protocol_map: {UserDB.protocol_map}")
         log.msg(f"Trying to find protocol for session_id: {session_id}")
 
         try:
@@ -182,10 +182,11 @@ class UserDB:
             past_commands = cursor.fetchall()
             cursor.close()
 
-            protocol = self.protocol_map.get(session_id)
+            #protocol = self.protocol_map.get(session_id)
+            protocol = UserDB.protocol_map.get(session_id)
             if not protocol or not hasattr(protocol, "cmdstack"):
                 log.msg(f"No valid protocol object found for session {session_id}")
-                log.msg(f"Protocol map keys: {list(self.protocol_map.keys())}")
+                log.msg(f"Protocol map keys: {list(UserDB.protocol_map.keys())}")
                 log.msg(f"Requested session_id: {session_id}")
                 return
 
