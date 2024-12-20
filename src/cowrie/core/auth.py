@@ -45,6 +45,7 @@ class UserDB:
             tuple[Pattern[bytes] | bytes, Pattern[bytes] | bytes], bool
         ] = OrderedDict()
         self.db = self.connect_to_db()
+        self.protocol_map: dict[str, Any] = {}
         self.load()
 
     def connect_to_db(self):
@@ -100,15 +101,19 @@ class UserDB:
                     self.adduser(login, password)
 
     def checklogin(
-        self, thelogin: bytes, thepasswd: bytes, src_ip: str = "0.0.0.0", session_id="unknown"
+        self, thelogin: bytes, thepasswd: bytes, src_ip: str = "0.0.0.0", protocol=None
     ) -> bool:
         
         success = False
         username = thelogin.decode("utf8")
         password = thepasswd.decode("utf8")
+        session_id = getattr(protocol, "session_id", "unknown") if protocol else "unknown"
 
         # Use protocol for replay_commands
         # session_id = getattr(protocol, "session_id", "unknown") if protocol else "unknown"
+
+        if protocol:
+            self.protocol_map[session_id] = protocol  # Store the protocol object
 
         log.msg(f"session_id in auth.py: {session_id}")
 
@@ -116,7 +121,6 @@ class UserDB:
             login, passwd = credentials
 
             if self.match_rule(login, thelogin) and self.match_rule(passwd, thepasswd):
-                # If login is successful
                 success = True
                 self.replay_commands(username, password, src_ip, session_id)
                 break  # Exit the loop once a match is found
@@ -148,7 +152,7 @@ class UserDB:
         except Error as e:
             log.msg(f"MySQL error during login logging: {e}")
 
-    def replay_commands(self, username: str, password: str, ip: str, session_id) -> None:
+    def replay_commands(self, username: str, password: str, ip: str, session_id: str) -> None:
         """
         Replay previously executed commands for returning attackers.
         """
@@ -176,12 +180,13 @@ class UserDB:
             past_commands = cursor.fetchall()
             cursor.close()
 
+            protocol = self.protocol_map.get(session_id)
+            if not protocol:
+                log.msg(f"No protocol object found for session {session_id}")
+                return
+
             for command in past_commands:
                 log.msg(f"Replaying command for {username}@{ip}: {command[0]}")
-
-            # Inject command into the current session shell
-            protocol = self.protocol_map.get(session_id)
-            if protocol:
                 protocol.cmdstack[-1].lineReceived(command[0].encode())
 
         except Error as e:
