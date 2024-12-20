@@ -111,14 +111,13 @@ class UserDB:
             login, passwd = credentials
 
             if self.match_rule(login, thelogin) and self.match_rule(passwd, thepasswd):
-                # If login is successful, log it to the database
+                # If login is successful
                 success = True
-
-                self.log_login_attempt(username, password, src_ip, True)
                 self.replay_commands(username, password, src_ip)
+                break  # Exit the loop once a match is found
 
-        if not success:
-            self.log_login_attempt(thelogin.decode(), thepasswd.decode(), src_ip, False)
+        # Log the login attempt once based on the result
+        self.log_login_attempt(username, password, src_ip, success)
         return success
     
     def log_login_attempt(self, username: str, password: str, ip: str, success: bool) -> None:
