@@ -23,7 +23,7 @@ from mysql.connector import Error
 from twisted.python import log
 
 from cowrie.core.config import CowrieConfig
-from cowrie.shell import protocol
+from cowrie.shell.protocol import HoneyPotBaseProtocol
 
 _USERDB_DEFAULTS: list[str] = [
     "root:x:!root",
@@ -112,14 +112,13 @@ class UserDB:
         # Use protocol for replay_commands
         # session_id = getattr(protocol, "session_id", "unknown") if protocol else "unknown"
 
-        if protocol:
+        if protocol and session_id != "unknown":
             self.protocol_map[session_id] = protocol  # Store the protocol object
 
         log.msg(f"session_id in auth.py: {session_id}")
 
         for credentials, policy in self.userdb.items():
             login, passwd = credentials
-
             if self.match_rule(login, thelogin) and self.match_rule(passwd, thepasswd):
                 success = True
                 self.replay_commands(username, password, src_ip, session_id)
@@ -181,8 +180,8 @@ class UserDB:
             cursor.close()
 
             protocol = self.protocol_map.get(session_id)
-            if not protocol:
-                log.msg(f"No protocol object found for session {session_id}")
+            if not protocol or not hasattr(protocol, "cmdstack"):
+                log.msg(f"No valid protocol object found for session {session_id}")
                 return
 
             for command in past_commands:
