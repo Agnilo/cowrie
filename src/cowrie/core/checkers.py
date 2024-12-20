@@ -120,10 +120,14 @@ class HoneypotPasswordChecker:
                 return defer.succeed(username)
         return defer.fail(UnauthorizedLogin())
 
-    def checkUserPass(self, theusername: bytes, thepassword: bytes, ip: str, protocol = None) -> bool:
+    def checkUserPass(self, theusername: bytes, thepassword: bytes, ip: str, protocol=None) -> bool:
         # Is the auth_class defined in the config file?
         authclass = CowrieConfig.get("honeypot", "auth_class", fallback="UserDB")
         authmodule = "cowrie.core.auth"
+
+        #session_id = getattr(protocol, "transportId", "unknown")
+        session_id = "unknown" 
+        username = theusername.decode("utf-8")
 
         # Check if authclass exists in this module
         if hasattr(modules[authmodule], authclass):
@@ -131,12 +135,15 @@ class HoneypotPasswordChecker:
         else:
             log.msg(f"auth_class: {authclass} not found in {authmodule}")
 
-        if session_id == "unknown":
-            log.msg("Could not retrieve session_id from protocol in checkers.py")
+        if protocol:
+            try:
+                session_id = getattr(protocol.transport, "transportId", "unknown")
+            except AttributeError:
+                log.msg(f"Could not retrieve session_id from protocol for {username}@{ip}")
+
+        log.msg(f"Session ID for {username}@{ip}: {session_id}")
 
         theauth = authname()
-
-        session_id = getattr(protocol, "transportId", "unknown")
 
         if theauth.checklogin(theusername, thepassword, ip, session_id):
             log.msg(
