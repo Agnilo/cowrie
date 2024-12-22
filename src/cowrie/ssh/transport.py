@@ -68,8 +68,11 @@ class HoneyPotSSHTransport(transport.SSHServerTransport, TimeoutMixin):
         if ipv4_search is not None:
             src_ip = ipv4_search.group(1)
 
-        UserDB.protocol_map[self.transportId] = self  # Correctly use `self.transportId`
-        log.msg(f"Added protocol to protocol_map for session {self.transportId}")
+        if hasattr(UserDB, "protocol_map"):
+            UserDB.protocol_map[self.transportId.lower()] = self
+            UserDB.protocol_map[self.transportId] = self
+            log.msg(f"Added protocol to protocol_map for session {self.transportId}")
+            log.msg(f"Current protocol_map at connectionMade: {UserDB.protocol_map}")
 
         log.msg(
             eventid="cowrie.session.connect",
