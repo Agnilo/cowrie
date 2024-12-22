@@ -189,10 +189,6 @@ class UserDB:
 
             log.msg(f"Found {len(past_commands)} commands to replay for {username}@{ip}.")
 
-            if not self.cmdstack:
-                log.msg(f"cmdstack is empty for replay_commands")
-                return
-
             #protocol = self.protocol_map.get(session_id)
             protocol = UserDB.protocol_map.get(session_id)
             if not protocol or not hasattr(protocol, "cmdstack"):
