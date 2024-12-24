@@ -99,6 +99,8 @@ class HoneyPotBaseProtocol(insults.TerminalProtocol, TimeoutMixin):
         timeout = CowrieConfig.getint("honeypot", "interactive_timeout", fallback=180)
         self.setTimeout(timeout)
 
+        self.initialize_cmdstack() 
+
         # Source IP of client in user visible reports (can be fake or real)
         self.clientIP = CowrieConfig.get(
             "honeypot", "fake_addr", fallback=self.realClientIP
@@ -189,6 +191,7 @@ class HoneyPotBaseProtocol(insults.TerminalProtocol, TimeoutMixin):
         string = line.decode("utf8")
 
         if self.cmdstack:
+            log.msg(f"Processing with cmdstack: {self.cmdstack}")
             self.cmdstack[-1].lineReceived(string)
         else:
             log.msg(f"discarding input {string}")
