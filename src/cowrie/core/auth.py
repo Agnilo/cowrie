@@ -191,29 +191,30 @@ class UserDB:
 
             #protocol = self.protocol_map.get(session_id)
             protocol = UserDB.protocol_map.get(session_id)
-
             if protocol is None:
                 log.msg(f"Session ID {session_id} not found in protocol_map.")
                 log.msg(f"Current protocol_map keys: {list(UserDB.protocol_map.keys())}")
                 return
 
             # Log protocol details
-            log.msg(f"Fetched protocol for session {session_id}: {protocol}")
-            log.msg(f"Attributes of protocol: {dir(protocol)}")
+            #log.msg(f"Fetched protocol for session {session_id}: {protocol}")
+            #log.msg(f"Attributes of protocol: {dir(protocol)}")
             
             # Ensure cmdstack is valid
-            if not hasattr(protocol, "cmdstack"):
-                log.msg(f"Protocol for session {session_id} does not have cmdstack.")
-                return
+            if not hasattr(protocol, "cmdstack") or not protocol.cmdstack:
+                log.msg(f"Cmdstack is missing or empty for session {session_id}. Initializing it.")
+                # Initialize cmdstack with the appropriate shell
+                # protocol.cmdstack = [HoneyPotShell(protocol)]
+                protocol.cmdstack.append(HoneyPotShell(protocol, interactive=False, redirect=True))
 
-            if not protocol.cmdstack:
-                log.msg(f"cmdstack is empty for session {session_id}.")
-                return
-
+            log.msg(f"cmdstack before replay: {protocol.cmdstack}")
             # Replay commands
             for command in past_commands:
                 log.msg(f"Replaying command for {username}@{ip}: {command[0]}")
-                protocol.cmdstack[-1].lineReceived(command[0].encode())
+                protocol.cmdstack[-1].lineReceived(command[0])
+            
+            output = protocol.pp.redirected_data.decode()
+            log.msg(f"Replay complete. Captured output: {output}")
 
         except Error as e:
             log.msg(f"MySQL error during command replay: {e}")
