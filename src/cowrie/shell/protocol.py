@@ -224,6 +224,14 @@ class HoneyPotBaseProtocol(insults.TerminalProtocol, TimeoutMixin):
         ret = failure.Failure(error.ProcessTerminated(exitCode=0))
         self.terminal.transport.processEnded(ret)
 
+    def initialize_cmdstack(self):
+        """
+        Default implementation for initializing cmdstack.
+        Subclasses should override this method if necessary.
+        """
+        log.msg("HoneyPotBaseProtocol: Initializing cmdstack")
+        self.cmdstack = []
+
 
 class HoneyPotExecProtocol(HoneyPotBaseProtocol):
     # input_data is static buffer for stdin received from remote client
@@ -292,6 +300,14 @@ class HoneyPotInteractiveProtocol(HoneyPotBaseProtocol, recvline.HistoricRecvLin
             self.terminal.write(self.fs.file_contents("/etc/motd"))
         except Exception:
             pass
+
+
+    def initialize_cmdstack(self):
+        """
+        Initialize cmdstack with interactive shell for this protocol.
+        """
+        log.msg("Interactive: Initializing cmdstack with HoneyPotShell")
+        self.cmdstack = [honeypot.HoneyPotShell(self)]
 
     def timeoutConnection(self) -> None:
         """
