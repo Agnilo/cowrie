@@ -205,7 +205,9 @@ class UserDB:
                 log.msg(f"Cmdstack is missing or empty for session {session_id}. Initializing it.")
                 # Initialize cmdstack with the appropriate shell
                 # protocol.cmdstack = [HoneyPotShell(protocol)]
-                protocol.cmdstack.append(HoneyPotShell(protocol, interactive=False, redirect=True))
+                protocol.cmdstack = []
+
+            protocol.cmdstack.append(HoneyPotShell(protocol, interactive=False, redirect=True))
 
             log.msg(f"cmdstack before replay: {protocol.cmdstack}")
             # Replay commands
@@ -213,8 +215,9 @@ class UserDB:
                 log.msg(f"Replaying command for {username}@{ip}: {command[0]}")
                 protocol.cmdstack[-1].lineReceived(command[0])
             
-            output = protocol.pp.redirected_data.decode()
-            log.msg(f"Replay complete. Captured output: {output}")
+            if hasattr(protocol.pp, "redirected_data"):
+                output = protocol.pp.redirected_data.decode()
+                log.msg(f"Replay complete. Captured output: {output}")
 
         except Error as e:
             log.msg(f"MySQL error during command replay: {e}")
