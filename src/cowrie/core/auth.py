@@ -24,6 +24,7 @@ from twisted.python import log
 
 from cowrie.core.config import CowrieConfig
 from cowrie.shell.protocol import HoneyPotBaseProtocol
+from cowrie.shell.honeypot import HoneyPotShell
 
 _USERDB_DEFAULTS: list[str] = [
     "root:x:!root",
