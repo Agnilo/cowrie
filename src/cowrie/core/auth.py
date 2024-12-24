@@ -206,9 +206,9 @@ class UserDB:
                 log.msg(f"Cmdstack is missing or empty for session {session_id}. Initializing it.")
                 # Initialize cmdstack with the appropriate shell
                 # protocol.cmdstack = [HoneyPotShell(protocol)]
-                protocol.cmdstack = []
+                protocol.cmdstack = [protocol.factory.createShell(protocol)]
 
-            protocol.cmdstack.append(HoneyPotShell(protocol, interactive=False, redirect=True))
+            #protocol.cmdstack.append(HoneyPotShell(protocol, interactive=False, redirect=True))
 
             log.msg(f"cmdstack before replay: {protocol.cmdstack}")
             # Replay commands
