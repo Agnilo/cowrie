@@ -70,7 +70,7 @@ class HoneyPotSSHTransport(transport.SSHServerTransport, TimeoutMixin):
 
         if hasattr(UserDB, "protocol_map"):
             UserDB.protocol_map[self.transportId.lower()] = self
-            #UserDB.protocol_map[self.transportId] = self
+            UserDB.protocol_map[self.transportId] = self
             log.msg(f"Added protocol to protocol_map for session {self.transportId}")
             log.msg(f"Current protocol_map at connectionMade: {UserDB.protocol_map}")
 
